@@ -126,7 +126,7 @@ export class Span implements APISpan, ReadableSpan {
 
   setAttribute(key: string, value?: SpanAttributeValue): this;
   setAttribute(key: string, value: unknown): this {
-    if (value == null || this._isSpanEnded()) return this;
+    if (value == null || this._isSpanEnded(`setAttribute: ${key}, value: ${value}`)) return this;
     if (key.length === 0) {
       diag.warn(`Invalid attribute key: ${key}`);
       return this;
@@ -166,15 +166,6 @@ export class Span implements APISpan, ReadableSpan {
     attributesOrStartTime?: SpanAttributes | TimeInput,
     timeStamp?: TimeInput
   ): this {
-    if (this._isSpanEnded()) return this;
-    if (this._spanLimits.eventCountLimit === 0) {
-      diag.warn('No events allowed.');
-      return this;
-    }
-    if (this.events.length >= this._spanLimits.eventCountLimit!) {
-      diag.warn('Dropping extra events.');
-      this.events.shift();
-    }
 
     if (isTimeInput(attributesOrStartTime)) {
       if (!isTimeInput(timeStamp)) {
@@ -184,6 +175,16 @@ export class Span implements APISpan, ReadableSpan {
     }
 
     const attributes = sanitizeAttributes(attributesOrStartTime);
+    if (this._isSpanEnded(`add event: ${name}, attributes: ${attributes}`)) return this;
+    if (this._spanLimits.eventCountLimit === 0) {
+      diag.warn('No events allowed.');
+      return this;
+    }
+    if (this.events.length >= this._spanLimits.eventCountLimit!) {
+      diag.warn('Dropping extra events.');
+      this.events.shift();
+    }
+
     this.events.push({
       name,
       attributes,
@@ -193,19 +194,19 @@ export class Span implements APISpan, ReadableSpan {
   }
 
   setStatus(status: SpanStatus): this {
-    if (this._isSpanEnded()) return this;
+    if (this._isSpanEnded(`setStatus: ${JSON.stringify(status)}`)) return this;
     this.status = status;
     return this;
   }
 
   updateName(name: string): this {
-    if (this._isSpanEnded()) return this;
+    if (this._isSpanEnded(`updateName: ${name}`)) return this;
     this.name = name;
     return this;
   }
 
   end(endTime?: TimeInput): void {
-    if (this._isSpanEnded()) {
+    if (this._isSpanEnded('end')) {
       diag.error('You can only call end() on a span once.');
       return;
     }
@@ -298,10 +299,10 @@ export class Span implements APISpan, ReadableSpan {
     return this._ended;
   }
 
-  private _isSpanEnded(): boolean {
+  private _isSpanEnded(event: string): boolean {
     if (this._ended) {
       diag.warn(
-        `Can not execute the operation on ended Span {traceId: ${this._spanContext.traceId}, spanId: ${this._spanContext.spanId}}`
+        `Can not execute the operation on ended Span {traceId: ${this._spanContext.traceId}, spanId: ${this._spanContext.spanId}}, event: ${event}, resource attributes: ${this.resource.attributes}, instrumentationLibrary: ${this.instrumentationLibrary.name}`
       );
     }
     return this._ended;
