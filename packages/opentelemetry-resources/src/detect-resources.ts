@@ -26,7 +26,7 @@ import { IResource } from './IResource';
  * does not resolve until all the underlying detectors have resolved, unlike
  * detectResourcesSync.
  *
- * @deprecated use detectResourceSync() instead.
+ * @deprecated use detectResourcesSync() instead.
  * @param config Configuration for resource detection
  */
 export const detectResources = async (
@@ -70,6 +70,7 @@ export const detectResourcesSync = (
         if (isPromiseLike<Resource>(resourceOrPromise)) {
           const createPromise = async () => {
             const resolvedResource = await resourceOrPromise;
+            await resolvedResource.waitForAsyncAttributes?.();
             return resolvedResource.attributes;
           };
           resource = new Resource({}, createPromise());

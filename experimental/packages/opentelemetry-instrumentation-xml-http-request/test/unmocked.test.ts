@@ -15,11 +15,11 @@
  */
 import { Span } from '@opentelemetry/api';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
-import { SemanticAttributes } from '@opentelemetry/semantic-conventions';
+import { SEMATTRS_HTTP_RESPONSE_CONTENT_LENGTH } from '@opentelemetry/semantic-conventions';
 import { ReadableSpan, SpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { WebTracerProvider } from '@opentelemetry/sdk-trace-web';
 import { XMLHttpRequestInstrumentation } from '../src';
-import assert = require('assert');
+import * as assert from 'assert';
 
 class TestSpanProcessor implements SpanProcessor {
   spans: ReadableSpan[] = [];
@@ -41,13 +41,14 @@ describe('unmocked xhr', () => {
   let testSpans: TestSpanProcessor;
   let provider: WebTracerProvider;
   beforeEach(() => {
-    provider = new WebTracerProvider();
+    testSpans = new TestSpanProcessor();
+    provider = new WebTracerProvider({
+      spanProcessors: [testSpans],
+    });
     registerInstrumentations({
       instrumentations: [new XMLHttpRequestInstrumentation()],
       tracerProvider: provider,
     });
-    testSpans = new TestSpanProcessor();
-    provider.addSpanProcessor(testSpans);
   });
   afterEach(() => {
     // nop
@@ -65,9 +66,7 @@ describe('unmocked xhr', () => {
         // content length comes from the PerformanceTiming resource; this ensures that our
         // matching logic found the right one
         assert.ok(
-          (span.attributes[
-            SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH
-          ] as any) > 0
+          (span.attributes[SEMATTRS_HTTP_RESPONSE_CONTENT_LENGTH] as any) > 0
         );
         done();
       }, 500);

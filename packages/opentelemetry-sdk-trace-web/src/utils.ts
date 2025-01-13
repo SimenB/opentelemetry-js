@@ -26,7 +26,10 @@ import {
   timeInputToHrTime,
   urlMatches,
 } from '@opentelemetry/core';
-import { SemanticAttributes } from '@opentelemetry/semantic-conventions';
+import {
+  SEMATTRS_HTTP_RESPONSE_CONTENT_LENGTH,
+  SEMATTRS_HTTP_RESPONSE_CONTENT_LENGTH_UNCOMPRESSED,
+} from '@opentelemetry/semantic-conventions';
 
 // Used to normalize relative URLs
 let urlNormalizingAnchor: HTMLAnchorElement | undefined;
@@ -56,57 +59,71 @@ export function hasKey<O extends object>(
  * @param span
  * @param performanceName name of performance entry for time start
  * @param entries
+ * @param refPerfName name of performance entry to use for reference
  */
 export function addSpanNetworkEvent(
   span: api.Span,
   performanceName: string,
-  entries: PerformanceEntries
+  entries: PerformanceEntries,
+  refPerfName?: string
 ): api.Span | undefined {
+  let perfTime = undefined;
+  let refTime = undefined;
   if (
     hasKey(entries, performanceName) &&
     typeof entries[performanceName] === 'number'
   ) {
-    span.addEvent(performanceName, entries[performanceName]);
+    perfTime = entries[performanceName];
+  }
+  const refName = refPerfName || PTN.FETCH_START;
+  // Use a reference time which is the earliest possible value so that the performance timings that are earlier should not be added
+  // using FETCH START time in case no reference is provided
+  if (hasKey(entries, refName) && typeof entries[refName] === 'number') {
+    refTime = entries[refName];
+  }
+  if (perfTime !== undefined && refTime !== undefined && perfTime >= refTime) {
+    span.addEvent(performanceName, perfTime);
     return span;
   }
   return undefined;
 }
 
 /**
- * Helper function for adding network events
+ * Helper function for adding network events and content length attributes
  * @param span
  * @param resource
+ * @param ignoreNetworkEvents
  */
 export function addSpanNetworkEvents(
   span: api.Span,
-  resource: PerformanceEntries
+  resource: PerformanceEntries,
+  ignoreNetworkEvents = false
 ): void {
-  addSpanNetworkEvent(span, PTN.FETCH_START, resource);
-  addSpanNetworkEvent(span, PTN.DOMAIN_LOOKUP_START, resource);
-  addSpanNetworkEvent(span, PTN.DOMAIN_LOOKUP_END, resource);
-  addSpanNetworkEvent(span, PTN.CONNECT_START, resource);
-  if (
-    hasKey(resource as PerformanceResourceTiming, 'name') &&
-    (resource as PerformanceResourceTiming)['name'].startsWith('https:')
-  ) {
-    addSpanNetworkEvent(span, PTN.SECURE_CONNECTION_START, resource);
+  if (!ignoreNetworkEvents) {
+    addSpanNetworkEvent(span, PTN.FETCH_START, resource);
+    addSpanNetworkEvent(span, PTN.DOMAIN_LOOKUP_START, resource);
+    addSpanNetworkEvent(span, PTN.DOMAIN_LOOKUP_END, resource);
+    addSpanNetworkEvent(span, PTN.CONNECT_START, resource);
+    if (
+      hasKey(resource as PerformanceResourceTiming, 'name') &&
+      (resource as PerformanceResourceTiming)['name'].startsWith('https:')
+    ) {
+      addSpanNetworkEvent(span, PTN.SECURE_CONNECTION_START, resource);
+    }
+    addSpanNetworkEvent(span, PTN.CONNECT_END, resource);
+    addSpanNetworkEvent(span, PTN.REQUEST_START, resource);
+    addSpanNetworkEvent(span, PTN.RESPONSE_START, resource);
+    addSpanNetworkEvent(span, PTN.RESPONSE_END, resource);
   }
-  addSpanNetworkEvent(span, PTN.CONNECT_END, resource);
-  addSpanNetworkEvent(span, PTN.REQUEST_START, resource);
-  addSpanNetworkEvent(span, PTN.RESPONSE_START, resource);
-  addSpanNetworkEvent(span, PTN.RESPONSE_END, resource);
   const encodedLength = resource[PTN.ENCODED_BODY_SIZE];
   if (encodedLength !== undefined) {
-    span.setAttribute(
-      SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH,
-      encodedLength
-    );
+    span.setAttribute(SEMATTRS_HTTP_RESPONSE_CONTENT_LENGTH, encodedLength);
   }
   const decodedLength = resource[PTN.DECODED_BODY_SIZE];
   // Spec: Not set if transport encoding not used (in which case encoded and decoded sizes match)
   if (decodedLength !== undefined && encodedLength !== decodedLength) {
     span.setAttribute(
-      SemanticAttributes.HTTP_RESPONSE_CONTENT_LENGTH_UNCOMPRESSED,
+      SEMATTRS_HTTP_RESPONSE_CONTENT_LENGTH_UNCOMPRESSED,
       decodedLength
     );
   }
@@ -129,6 +146,11 @@ export function sortResources(
     }
     return 0;
   });
+}
+
+/** Returns the origin if present (if in browser context). */
+function getOrigin(): string | undefined {
+  return typeof location !== 'undefined' ? location.origin : undefined;
 }
 
 /**
@@ -174,7 +196,7 @@ export function getResource(
   }
   const sorted = sortResources(filteredResources);
 
-  if (parsedSpanUrl.origin !== location.origin && sorted.length > 1) {
+  if (parsedSpanUrl.origin !== getOrigin() && sorted.length > 1) {
     let corsPreFlightRequest: PerformanceResourceTiming | undefined = sorted[0];
     let mainRequest: PerformanceResourceTiming = findMainRequest(
       sorted,
@@ -315,8 +337,8 @@ export function parseUrl(url: string): URLLike {
       typeof document !== 'undefined'
         ? document.baseURI
         : typeof location !== 'undefined' // Some JS runtimes (e.g. Deno) don't define this
-        ? location.href
-        : undefined
+          ? location.href
+          : undefined
     );
   }
   const element = getUrlNormalizingAnchor();
@@ -438,7 +460,7 @@ export function shouldPropagateTraceHeaders(
   }
   const parsedSpanUrl = parseUrl(spanUrl);
 
-  if (parsedSpanUrl.origin === location.origin) {
+  if (parsedSpanUrl.origin === getOrigin()) {
     return true;
   } else {
     return propagateTraceHeaderUrls.some(propagateTraceHeaderUrl =>

@@ -14,20 +14,25 @@
  * limitations under the License.
  */
 
-import { ExportResult, getEnv } from '@opentelemetry/core';
+import { getEnv } from '@opentelemetry/core';
 import {
   AggregationTemporality,
   AggregationTemporalitySelector,
   InstrumentType,
   PushMetricExporter,
   ResourceMetrics,
+  AggregationSelector,
+  AggregationOption,
+  AggregationType,
 } from '@opentelemetry/sdk-metrics';
 import {
   AggregationTemporalityPreference,
   OTLPMetricExporterOptions,
 } from './OTLPMetricExporterOptions';
-import { OTLPExporterBase } from '@opentelemetry/otlp-exporter-base';
-import { IExportMetricsServiceRequest } from '@opentelemetry/otlp-transformer';
+import {
+  IOtlpExportDelegate,
+  OTLPExporterBase,
+} from '@opentelemetry/otlp-exporter-base';
 import { diag } from '@opentelemetry/api';
 
 export const CumulativeTemporalitySelector: AggregationTemporalitySelector =
@@ -39,6 +44,7 @@ export const DeltaTemporalitySelector: AggregationTemporalitySelector = (
   switch (instrumentType) {
     case InstrumentType.COUNTER:
     case InstrumentType.OBSERVABLE_COUNTER:
+    case InstrumentType.GAUGE:
     case InstrumentType.HISTOGRAM:
     case InstrumentType.OBSERVABLE_GAUGE:
       return AggregationTemporality.DELTA;
@@ -55,6 +61,7 @@ export const LowMemoryTemporalitySelector: AggregationTemporalitySelector = (
     case InstrumentType.COUNTER:
     case InstrumentType.HISTOGRAM:
       return AggregationTemporality.DELTA;
+    case InstrumentType.GAUGE:
     case InstrumentType.UP_DOWN_COUNTER:
     case InstrumentType.OBSERVABLE_UP_DOWN_COUNTER:
     case InstrumentType.OBSERVABLE_COUNTER:
@@ -104,37 +111,40 @@ function chooseTemporalitySelector(
   return chooseTemporalitySelectorFromEnvironment();
 }
 
-export class OTLPMetricExporterBase<
-  T extends OTLPExporterBase<
-    OTLPMetricExporterOptions,
-    ResourceMetrics,
-    IExportMetricsServiceRequest
-  >
-> implements PushMetricExporter
-{
-  public _otlpExporter: T;
-  private _aggregationTemporalitySelector: AggregationTemporalitySelector;
+function chooseAggregationSelector(
+  config: OTLPMetricExporterOptions | undefined
+) {
+  if (config?.aggregationPreference) {
+    return config.aggregationPreference;
+  } else {
+    return (_instrumentType: any) => {
+      return {
+        type: AggregationType.DEFAULT,
+      };
+    };
+  }
+}
 
-  constructor(exporter: T, config?: OTLPMetricExporterOptions) {
-    this._otlpExporter = exporter;
+export class OTLPMetricExporterBase
+  extends OTLPExporterBase<ResourceMetrics>
+  implements PushMetricExporter
+{
+  private readonly _aggregationTemporalitySelector: AggregationTemporalitySelector;
+  private readonly _aggregationSelector: AggregationSelector;
+
+  constructor(
+    delegate: IOtlpExportDelegate<ResourceMetrics>,
+    config?: OTLPMetricExporterOptions
+  ) {
+    super(delegate);
+    this._aggregationSelector = chooseAggregationSelector(config);
     this._aggregationTemporalitySelector = chooseTemporalitySelector(
       config?.temporalityPreference
     );
   }
 
-  export(
-    metrics: ResourceMetrics,
-    resultCallback: (result: ExportResult) => void
-  ): void {
-    this._otlpExporter.export([metrics], resultCallback);
-  }
-
-  async shutdown(): Promise<void> {
-    await this._otlpExporter.shutdown();
-  }
-
-  forceFlush(): Promise<void> {
-    return Promise.resolve();
+  selectAggregation(instrumentType: InstrumentType): AggregationOption {
+    return this._aggregationSelector(instrumentType);
   }
 
   selectAggregationTemporality(

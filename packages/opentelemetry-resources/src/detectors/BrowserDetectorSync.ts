@@ -14,24 +14,36 @@
  * limitations under the License.
  */
 
-import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
-import { DetectorSync, IResource, Resource, ResourceDetectionConfig } from '..';
-import { ResourceAttributes } from '../types';
+import { Attributes } from '@opentelemetry/api';
+import {
+  SEMRESATTRS_PROCESS_RUNTIME_DESCRIPTION,
+  SEMRESATTRS_PROCESS_RUNTIME_NAME,
+  SEMRESATTRS_PROCESS_RUNTIME_VERSION,
+} from '@opentelemetry/semantic-conventions';
+import { DetectorSync } from '../types';
 import { diag } from '@opentelemetry/api';
+import { ResourceDetectionConfig } from '../config';
+import { IResource } from '../IResource';
+import { Resource } from '../Resource';
 
 /**
  * BrowserDetectorSync will be used to detect the resources related to browser.
  */
 class BrowserDetectorSync implements DetectorSync {
   detect(config?: ResourceDetectionConfig): IResource {
-    const isBrowser = typeof navigator !== 'undefined';
+    const isBrowser =
+      typeof navigator !== 'undefined' &&
+      global.process?.versions?.node === undefined && // Node.js v21 adds `navigator`
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore don't have Bun types
+      global.Bun?.version === undefined; // Bun (bun.sh) defines `navigator`
     if (!isBrowser) {
       return Resource.empty();
     }
-    const browserResource: ResourceAttributes = {
-      [SemanticResourceAttributes.PROCESS_RUNTIME_NAME]: 'browser',
-      [SemanticResourceAttributes.PROCESS_RUNTIME_DESCRIPTION]: 'Web Browser',
-      [SemanticResourceAttributes.PROCESS_RUNTIME_VERSION]: navigator.userAgent,
+    const browserResource: Attributes = {
+      [SEMRESATTRS_PROCESS_RUNTIME_NAME]: 'browser',
+      [SEMRESATTRS_PROCESS_RUNTIME_DESCRIPTION]: 'Web Browser',
+      [SEMRESATTRS_PROCESS_RUNTIME_VERSION]: navigator.userAgent,
     };
     return this._getResourceAttributes(browserResource, config);
   }
@@ -43,12 +55,10 @@ class BrowserDetectorSync implements DetectorSync {
    * @returns The sanitized resource attributes.
    */
   private _getResourceAttributes(
-    browserResource: ResourceAttributes,
+    browserResource: Attributes,
     _config?: ResourceDetectionConfig
   ) {
-    if (
-      browserResource[SemanticResourceAttributes.PROCESS_RUNTIME_VERSION] === ''
-    ) {
+    if (browserResource[SEMRESATTRS_PROCESS_RUNTIME_VERSION] === '') {
       diag.debug(
         'BrowserDetector failed: Unable to find required browser resources. '
       );

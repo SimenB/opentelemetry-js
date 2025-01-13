@@ -27,7 +27,7 @@ import { Resource } from '@opentelemetry/resources';
 import { ZipkinExporter } from '../../src';
 import * as zipkinTypes from '../../src/types';
 import { TraceFlags } from '@opentelemetry/api';
-import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
+import { SEMRESATTRS_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
 
 const MICROS_PER_SECS = 1e6;
 
@@ -55,7 +55,7 @@ function getReadableSpan() {
     links: [],
     events: [],
     resource: Resource.empty(),
-    instrumentationLibrary: { name: 'default', version: '0.0.1' },
+    instrumentationScope: { name: 'default', version: '0.0.1' },
     droppedAttributesCount: 0,
     droppedEventsCount: 0,
     droppedLinksCount: 0,
@@ -166,7 +166,7 @@ describe('Zipkin Exporter - node', () => {
           },
         ],
         resource: Resource.empty(),
-        instrumentationLibrary: { name: 'default', version: '0.0.1' },
+        instrumentationScope: { name: 'default', version: '0.0.1' },
         droppedAttributesCount: 0,
         droppedEventsCount: 0,
         droppedLinksCount: 0,
@@ -192,7 +192,7 @@ describe('Zipkin Exporter - node', () => {
         links: [],
         events: [],
         resource: Resource.empty(),
-        instrumentationLibrary: { name: 'default', version: '0.0.1' },
+        instrumentationScope: { name: 'default', version: '0.0.1' },
         droppedAttributesCount: 0,
         droppedEventsCount: 0,
         droppedLinksCount: 0,
@@ -385,9 +385,9 @@ describe('Zipkin Exporter - node', () => {
         },
       ],
       resource: new Resource({
-        [SemanticResourceAttributes.SERVICE_NAME]: resource_service_name,
+        [SEMRESATTRS_SERVICE_NAME]: resource_service_name,
       }),
-      instrumentationLibrary: { name: 'default', version: '0.0.1' },
+      instrumentationScope: { name: 'default', version: '0.0.1' },
       droppedAttributesCount: 0,
       droppedEventsCount: 0,
       droppedLinksCount: 0,
@@ -411,9 +411,9 @@ describe('Zipkin Exporter - node', () => {
       links: [],
       events: [],
       resource: new Resource({
-        [SemanticResourceAttributes.SERVICE_NAME]: resource_service_name_prime,
+        [SEMRESATTRS_SERVICE_NAME]: resource_service_name_prime,
       }),
-      instrumentationLibrary: { name: 'default', version: '0.0.1' },
+      instrumentationScope: { name: 'default', version: '0.0.1' },
       droppedAttributesCount: 0,
       droppedEventsCount: 0,
       droppedLinksCount: 0,
@@ -470,7 +470,7 @@ describe('Zipkin Exporter - node', () => {
       attributes: {
         key1: 'value1',
         key2: 'value2',
-        [SemanticResourceAttributes.SERVICE_NAME]: span_service_name,
+        [SEMRESATTRS_SERVICE_NAME]: span_service_name,
       },
       links: [],
       events: [
@@ -481,7 +481,7 @@ describe('Zipkin Exporter - node', () => {
         },
       ],
       resource: Resource.empty(),
-      instrumentationLibrary: { name: 'default', version: '0.0.1' },
+      instrumentationScope: { name: 'default', version: '0.0.1' },
       droppedAttributesCount: 0,
       droppedEventsCount: 0,
       droppedLinksCount: 0,
@@ -502,12 +502,12 @@ describe('Zipkin Exporter - node', () => {
         code: api.SpanStatusCode.OK,
       },
       attributes: {
-        [SemanticResourceAttributes.SERVICE_NAME]: span_service_name_prime,
+        [SEMRESATTRS_SERVICE_NAME]: span_service_name_prime,
       },
       links: [],
       events: [],
       resource: Resource.empty(),
-      instrumentationLibrary: { name: 'default', version: '0.0.1' },
+      instrumentationScope: { name: 'default', version: '0.0.1' },
       droppedAttributesCount: 0,
       droppedEventsCount: 0,
       droppedLinksCount: 0,

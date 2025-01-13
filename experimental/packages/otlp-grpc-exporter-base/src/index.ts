@@ -14,10 +14,6 @@
  * limitations under the License.
  */
 
-export * from './OTLPGRPCExporterNodeBase';
-export { ServiceClientType, OTLPGRPCExporterConfigNode } from './types';
-export {
-  DEFAULT_COLLECTOR_URL,
-  validateAndNormalizeUrl,
-  GrpcCompressionAlgorithm,
-} from './util';
+export { convertLegacyOtlpGrpcOptions } from './configuration/convert-legacy-otlp-grpc-options';
+export { createOtlpGrpcExportDelegate } from './otlp-grpc-export-delegate';
+export { OTLPGRPCExporterConfigNode } from './types';

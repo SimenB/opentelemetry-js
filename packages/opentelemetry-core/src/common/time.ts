@@ -111,7 +111,7 @@ export function hrTimeDuration(
 export function hrTimeToTimeStamp(time: api.HrTime): string {
   const precision = NANOSECOND_DIGITS;
   const tmp = `${'0'.repeat(precision)}${time[1]}Z`;
-  const nanoString = tmp.substr(tmp.length - precision - 1);
+  const nanoString = tmp.substring(tmp.length - precision - 1);
   const date = new Date(time[0] * 1000).toISOString();
   return date.replace('000Z', nanoString);
 }
@@ -129,7 +129,7 @@ export function hrTimeToNanoseconds(time: api.HrTime): number {
  * @param time
  */
 export function hrTimeToMilliseconds(time: api.HrTime): number {
-  return Math.round(time[0] * 1e3 + time[1] / 1e6);
+  return time[0] * 1e3 + time[1] / 1e6;
 }
 
 /**
@@ -137,7 +137,7 @@ export function hrTimeToMilliseconds(time: api.HrTime): number {
  * @param time
  */
 export function hrTimeToMicroseconds(time: api.HrTime): number {
-  return Math.round(time[0] * 1e6 + time[1] / 1e3);
+  return time[0] * 1e6 + time[1] / 1e3;
 }
 
 /**

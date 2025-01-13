@@ -15,6 +15,7 @@
  */
 
 import * as assert from 'assert';
+import { InstrumentType } from '../../src';
 import {
   Aggregator,
   DropAggregator,
@@ -22,47 +23,17 @@ import {
   LastValueAggregator,
   SumAggregator,
 } from '../../src/aggregator';
+import { InstrumentDescriptor } from '../../src/InstrumentDescriptor';
 import {
-  InstrumentDescriptor,
-  InstrumentType,
-} from '../../src/InstrumentDescriptor';
-import {
-  Aggregation,
   DefaultAggregation,
-  DropAggregation,
   ExplicitBucketHistogramAggregation,
   HistogramAggregation,
-  LastValueAggregation,
-  SumAggregation,
 } from '../../src/view/Aggregation';
 import { defaultInstrumentDescriptor } from '../util';
-
-interface AggregationConstructor {
-  new (...args: any[]): Aggregation;
-}
 
 interface AggregatorConstructor {
   new (...args: any[]): Aggregator<unknown>;
 }
-
-describe('Aggregation', () => {
-  it('static aggregations', () => {
-    const staticMembers: [keyof typeof Aggregation, AggregationConstructor][] =
-      [
-        ['Drop', DropAggregation],
-        ['Sum', SumAggregation],
-        ['LastValue', LastValueAggregation],
-        ['Histogram', HistogramAggregation],
-        ['Default', DefaultAggregation],
-      ];
-
-    for (const [key, type] of staticMembers) {
-      const aggregation = (Aggregation[key] as () => Aggregation)();
-      assert(aggregation instanceof type);
-      assert(aggregation.createAggregator(defaultInstrumentDescriptor));
-    }
-  });
-});
 
 describe('DefaultAggregation', () => {
   describe('createAggregator', () => {
@@ -156,6 +127,25 @@ describe('ExplicitBucketHistogramAggregation', () => {
       assert(aggregation instanceof ExplicitBucketHistogramAggregation);
       assert.deepStrictEqual(aggregation['_boundaries'], [1, 10, 100]);
     }
+  });
+
+  it('construct with empty boundaries', function () {
+    const boundaries: number[] = [];
+    const aggregation = new ExplicitBucketHistogramAggregation(boundaries);
+    assert.ok(aggregation instanceof ExplicitBucketHistogramAggregation);
+    assert.deepStrictEqual(aggregation['_boundaries'], []);
+  });
+
+  it('construct with undefined boundaries should throw', function () {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore simulate how a JS user could pass undefined
+    assert.throws(() => new ExplicitBucketHistogramAggregation(undefined));
+  });
+
+  it('construct with null boundaries should throw', function () {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore simulate how a JS user could pass null
+    assert.throws(() => new ExplicitBucketHistogramAggregation(null));
   });
 
   it('constructor should not modify inputs', () => {

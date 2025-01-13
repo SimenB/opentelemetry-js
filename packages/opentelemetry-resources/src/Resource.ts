@@ -14,10 +14,14 @@
  * limitations under the License.
  */
 
-import { diag } from '@opentelemetry/api';
-import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
+import { Attributes, diag } from '@opentelemetry/api';
+import {
+  SEMRESATTRS_SERVICE_NAME,
+  SEMRESATTRS_TELEMETRY_SDK_LANGUAGE,
+  SEMRESATTRS_TELEMETRY_SDK_NAME,
+  SEMRESATTRS_TELEMETRY_SDK_VERSION,
+} from '@opentelemetry/semantic-conventions';
 import { SDK_INFO } from '@opentelemetry/core';
-import { ResourceAttributes } from './types';
 import { defaultServiceName } from './platform';
 import { IResource } from './IResource';
 
@@ -27,9 +31,9 @@ import { IResource } from './IResource';
  */
 export class Resource implements IResource {
   static readonly EMPTY = new Resource({});
-  private _syncAttributes?: ResourceAttributes;
-  private _asyncAttributesPromise?: Promise<ResourceAttributes>;
-  private _attributes?: ResourceAttributes;
+  private _syncAttributes?: Attributes;
+  private _asyncAttributesPromise?: Promise<Attributes>;
+  private _attributes?: Attributes;
 
   /**
    * Check if async attributes have resolved. This is useful to avoid awaiting
@@ -51,13 +55,13 @@ export class Resource implements IResource {
    */
   static default(): IResource {
     return new Resource({
-      [SemanticResourceAttributes.SERVICE_NAME]: defaultServiceName(),
-      [SemanticResourceAttributes.TELEMETRY_SDK_LANGUAGE]:
-        SDK_INFO[SemanticResourceAttributes.TELEMETRY_SDK_LANGUAGE],
-      [SemanticResourceAttributes.TELEMETRY_SDK_NAME]:
-        SDK_INFO[SemanticResourceAttributes.TELEMETRY_SDK_NAME],
-      [SemanticResourceAttributes.TELEMETRY_SDK_VERSION]:
-        SDK_INFO[SemanticResourceAttributes.TELEMETRY_SDK_VERSION],
+      [SEMRESATTRS_SERVICE_NAME]: defaultServiceName(),
+      [SEMRESATTRS_TELEMETRY_SDK_LANGUAGE]:
+        SDK_INFO[SEMRESATTRS_TELEMETRY_SDK_LANGUAGE],
+      [SEMRESATTRS_TELEMETRY_SDK_NAME]:
+        SDK_INFO[SEMRESATTRS_TELEMETRY_SDK_NAME],
+      [SEMRESATTRS_TELEMETRY_SDK_VERSION]:
+        SDK_INFO[SEMRESATTRS_TELEMETRY_SDK_VERSION],
     });
   }
 
@@ -67,8 +71,8 @@ export class Resource implements IResource {
      * information about the entity as numbers, strings or booleans
      * TODO: Consider to add check/validation on attributes.
      */
-    attributes: ResourceAttributes,
-    asyncAttributesPromise?: Promise<ResourceAttributes>
+    attributes: Attributes,
+    asyncAttributesPromise?: Promise<Attributes>
   ) {
     this._attributes = attributes;
     this.asyncAttributesPending = asyncAttributesPromise != null;
@@ -87,7 +91,7 @@ export class Resource implements IResource {
     );
   }
 
-  get attributes(): ResourceAttributes {
+  get attributes(): Attributes {
     if (this.asyncAttributesPending) {
       diag.error(
         'Accessing resource attributes before async attributes settled'
@@ -119,7 +123,7 @@ export class Resource implements IResource {
   merge(other: IResource | null): IResource {
     if (!other) return this;
 
-    // SpanAttributes from other resource overwrite attributes from this resource.
+    // Attributes from other resource overwrite attributes from this resource.
     const mergedSyncAttributes = {
       ...this._syncAttributes,
       //Support for old resource implementation where _syncAttributes is not defined

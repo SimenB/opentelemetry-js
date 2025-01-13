@@ -17,18 +17,16 @@
 import {
   Context,
   BatchObservableCallback,
-  MetricAttributes,
+  Attributes,
   ObservableCallback,
   ValueType,
 } from '@opentelemetry/api';
 import { InstrumentationScope } from '@opentelemetry/core';
 import { Resource } from '@opentelemetry/resources';
 import * as assert from 'assert';
+import { InstrumentDescriptor } from '../src/InstrumentDescriptor';
 import {
-  InstrumentDescriptor,
   InstrumentType,
-} from '../src/InstrumentDescriptor';
-import {
   MetricData,
   DataPoint,
   DataPointType,
@@ -41,8 +39,7 @@ import { AggregationTemporality } from '../src/export/AggregationTemporality';
 
 export type Measurement = {
   value: number;
-  // TODO: use common attributes
-  attributes: MetricAttributes;
+  attributes: Attributes;
   context?: Context;
 };
 
@@ -58,6 +55,7 @@ export const defaultInstrumentDescriptor: InstrumentDescriptor = {
   type: InstrumentType.COUNTER,
   unit: '1',
   valueType: ValueType.DOUBLE,
+  advice: {},
 };
 
 export const defaultInstrumentationScope: InstrumentationScope = {
@@ -66,8 +64,19 @@ export const defaultInstrumentationScope: InstrumentationScope = {
   schemaUrl: 'https://opentelemetry.io/schemas/1.7.0',
 };
 
+export const invalidNames = ['', 'a'.repeat(256), '1a', '-a', '.a', '_a'];
+export const validNames = [
+  'a',
+  'a'.repeat(255),
+  'a1',
+  'a-1',
+  'a.1',
+  'a_1',
+  'a/1',
+];
+
 export const commonValues: number[] = [1, -1, 1.0, Infinity, -Infinity, NaN];
-export const commonAttributes: MetricAttributes[] = [
+export const commonAttributes: Attributes[] = [
   {},
   { 1: '1' },
   { a: '2' },
@@ -93,12 +102,12 @@ export function assertScopeMetrics(
 export function assertMetricData(
   actual: unknown,
   dataPointType?: DataPointType,
-  instrumentDescriptor: Partial<InstrumentDescriptor> | null = defaultInstrumentDescriptor,
+  metricDescriptor: Partial<InstrumentDescriptor> | null = defaultInstrumentDescriptor,
   aggregationTemporality?: AggregationTemporality
 ): asserts actual is MetricData {
   const it = actual as MetricData;
-  if (instrumentDescriptor != null) {
-    assertPartialDeepStrictEqual(it.descriptor, instrumentDescriptor);
+  if (metricDescriptor != null) {
+    assertPartialDeepStrictEqual(it.descriptor, metricDescriptor);
   }
   if (isNotNullish(dataPointType)) {
     assert.strictEqual(it.dataPointType, dataPointType);
@@ -113,7 +122,7 @@ export function assertMetricData(
 
 export function assertDataPoint(
   actual: unknown,
-  attributes: MetricAttributes,
+  attributes: Attributes,
   point: Histogram | number,
   startTime?: HrTime,
   endTime?: HrTime

@@ -15,71 +15,29 @@
  */
 
 import { ReadableSpan, SpanExporter } from '@opentelemetry/sdk-trace-base';
-import { baggageUtils, getEnv } from '@opentelemetry/core';
-import { Metadata } from '@grpc/grpc-js';
 import {
+  convertLegacyOtlpGrpcOptions,
+  createOtlpGrpcExportDelegate,
   OTLPGRPCExporterConfigNode,
-  OTLPGRPCExporterNodeBase,
-  ServiceClientType,
-  validateAndNormalizeUrl,
-  DEFAULT_COLLECTOR_URL,
 } from '@opentelemetry/otlp-grpc-exporter-base';
-import {
-  createExportTraceServiceRequest,
-  IExportTraceServiceRequest,
-} from '@opentelemetry/otlp-transformer';
-import { VERSION } from './version';
-
-const USER_AGENT = {
-  'User-Agent': `OTel-OTLP-Exporter-JavaScript/${VERSION}`,
-};
+import { ProtobufTraceSerializer } from '@opentelemetry/otlp-transformer';
+import { OTLPExporterBase } from '@opentelemetry/otlp-exporter-base';
 
 /**
  * OTLP Trace Exporter for Node
  */
 export class OTLPTraceExporter
-  extends OTLPGRPCExporterNodeBase<ReadableSpan, IExportTraceServiceRequest>
+  extends OTLPExporterBase<ReadableSpan[]>
   implements SpanExporter
 {
   constructor(config: OTLPGRPCExporterConfigNode = {}) {
-    super(config);
-    const headers = {
-      ...USER_AGENT,
-      ...baggageUtils.parseKeyPairsIntoRecord(
-        getEnv().OTEL_EXPORTER_OTLP_TRACES_HEADERS
-      ),
-    };
-    this.metadata ||= new Metadata();
-    for (const [k, v] of Object.entries(headers)) {
-      this.metadata.set(k, v);
-    }
-  }
-
-  convert(spans: ReadableSpan[]): IExportTraceServiceRequest {
-    return createExportTraceServiceRequest(spans);
-  }
-
-  getDefaultUrl(config: OTLPGRPCExporterConfigNode) {
-    return validateAndNormalizeUrl(this.getUrlFromConfig(config));
-  }
-
-  getServiceClientType() {
-    return ServiceClientType.SPANS;
-  }
-
-  getServiceProtoPath(): string {
-    return 'opentelemetry/proto/collector/trace/v1/trace_service.proto';
-  }
-
-  getUrlFromConfig(config: OTLPGRPCExporterConfigNode): string {
-    if (typeof config.url === 'string') {
-      return config.url;
-    }
-
-    return (
-      getEnv().OTEL_EXPORTER_OTLP_TRACES_ENDPOINT ||
-      getEnv().OTEL_EXPORTER_OTLP_ENDPOINT ||
-      DEFAULT_COLLECTOR_URL
+    super(
+      createOtlpGrpcExportDelegate(
+        convertLegacyOtlpGrpcOptions(config, 'TRACES'),
+        ProtobufTraceSerializer,
+        'TraceExportService',
+        '/opentelemetry.proto.collector.trace.v1.TraceService/Export'
+      )
     );
   }
 }

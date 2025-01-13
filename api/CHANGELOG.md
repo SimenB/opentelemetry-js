@@ -1,8 +1,60 @@
+<!-- markdownlint-disable MD004 -->
 # CHANGELOG
 
 All notable changes to this project will be documented in this file.
 
 ## Unreleased
+
+### :boom: Breaking Change
+
+### :rocket: (Enhancement)
+
+### :bug: (Bug Fix)
+
+### :books: (Refine Doc)
+
+### :house: (Internal)
+
+* refactor(api): remove "export *" in favor of explicit named exports [#4880](https://github.com/open-telemetry/opentelemetry-js/pull/4880) @robbkidd
+
+## 1.9.0
+
+### :rocket: (Enhancement)
+
+* feat(metrics): added synchronous gauge [#4528](https://github.com/open-telemetry/opentelemetry-js/pull/4528) @clintonb
+* feat(api): allow adding span links after span creation [#4536](https://github.com/open-telemetry/opentelemetry-js/pull/4536) @seemk
+  * This change is non-breaking for end-users, but breaking for Trace SDK implmentations in accordance with the [specification](https://github.com/open-telemetry/opentelemetry-specification/blob/a03382ada8afa9415266a84dafac0510ec8c160f/specification/upgrading.md?plain=1#L97-L122) as new features need to be implemented.
+* feat: support node 22 [#4666](https://github.com/open-telemetry/opentelemetry-js/pull/4666) @dyladan
+
+## 1.8.0
+
+### :rocket: (Enhancement)
+
+* feat(api): add SugaredTracer for functions not defined in the spec
+
+### :bug: (Bug Fix)
+
+* fix(api): fix unreachable @opentelemetry/api/experimental entry [#4446](https://github.com/open-telemetry/opentelemetry-js/pull/4446) @legendecas
+
+## 1.7.0
+
+### :rocket: (Enhancement)
+
+* feat(metrics): prototype experimental advice support [#3876](https://github.com/open-telemetry/opentelemetry-js/pull/3876) @legendecas
+* feat(api): publish api esnext target [#4231](https://github.com/open-telemetry/opentelemetry-js/pull/4231) @legendecas
+
+## 1.6.0
+
+### :bug: (Bug Fix)
+
+* Revert "feat(api): add attributes argument to recordException API [#4071](https://github.com/open-telemetry/opentelemetry-js/pull/4071)"
+  * This feature was an unintentional breaking change introduced with 1.5.0
+
+## 1.5.0
+
+### :rocket: (Enhancement)
+
+* feat(api): add attributes argument to recordException API [#4071](https://github.com/open-telemetry/opentelemetry-js/pull/4071)
 
 ## 1.4.1
 
@@ -53,13 +105,13 @@ All notable changes to this project will be documented in this file.
 
 * export tracer options ([#154](https://www.github.com/open-telemetry/opentelemetry-js-api/issues/154)) ([b125324](https://www.github.com/open-telemetry/opentelemetry-js-api/commit/b125324438fb2f24eb80c7c6673afc8cfc99575e))
 
-### [1.0.4](https://www.github.com/open-telemetry/opentelemetry-js-api/compare/v1.0.3...v1.0.4) (2021-12-18)
+## [1.0.4](https://www.github.com/open-telemetry/opentelemetry-js-api/compare/v1.0.3...v1.0.4) (2021-12-18)
 
 ### Bug Fixes
 
 * align globalThis fallbacks with otel-core ([#126](https://www.github.com/open-telemetry/opentelemetry-js-api/issues/126)) ([3507de7](https://www.github.com/open-telemetry/opentelemetry-js-api/commit/3507de7c3b95396696657c021953b0b24a63a029))
 
-### [1.0.3](https://www.github.com/open-telemetry/opentelemetry-js-api/compare/v1.0.2...v1.0.3) (2021-08-30)
+## [1.0.3](https://www.github.com/open-telemetry/opentelemetry-js-api/compare/v1.0.2...v1.0.3) (2021-08-30)
 
 ### Bug Fixes
 

@@ -15,63 +15,29 @@
  */
 
 import { LogRecordExporter, ReadableLogRecord } from '@opentelemetry/sdk-logs';
-import { baggageUtils, getEnv } from '@opentelemetry/core';
-import { Metadata } from '@grpc/grpc-js';
 import {
+  convertLegacyOtlpGrpcOptions,
+  createOtlpGrpcExportDelegate,
   OTLPGRPCExporterConfigNode,
-  OTLPGRPCExporterNodeBase,
-  ServiceClientType,
-  validateAndNormalizeUrl,
-  DEFAULT_COLLECTOR_URL,
 } from '@opentelemetry/otlp-grpc-exporter-base';
-import {
-  createExportLogsServiceRequest,
-  IExportLogsServiceRequest,
-} from '@opentelemetry/otlp-transformer';
+import { ProtobufLogsSerializer } from '@opentelemetry/otlp-transformer';
+import { OTLPExporterBase } from '@opentelemetry/otlp-exporter-base';
 
 /**
  * OTLP Logs Exporter for Node
  */
 export class OTLPLogExporter
-  extends OTLPGRPCExporterNodeBase<ReadableLogRecord, IExportLogsServiceRequest>
+  extends OTLPExporterBase<ReadableLogRecord[]>
   implements LogRecordExporter
 {
   constructor(config: OTLPGRPCExporterConfigNode = {}) {
-    super(config);
-    const headers = baggageUtils.parseKeyPairsIntoRecord(
-      getEnv().OTEL_EXPORTER_OTLP_LOGS_HEADERS
-    );
-    this.metadata ||= new Metadata();
-    for (const [k, v] of Object.entries(headers)) {
-      this.metadata.set(k, v);
-    }
-  }
-
-  convert(logRecords: ReadableLogRecord[]): IExportLogsServiceRequest {
-    return createExportLogsServiceRequest(logRecords);
-  }
-
-  getDefaultUrl(config: OTLPGRPCExporterConfigNode) {
-    return validateAndNormalizeUrl(this.getUrlFromConfig(config));
-  }
-
-  getServiceClientType() {
-    return ServiceClientType.LOGS;
-  }
-
-  getServiceProtoPath(): string {
-    return 'opentelemetry/proto/collector/logs/v1/logs_service.proto';
-  }
-
-  getUrlFromConfig(config: OTLPGRPCExporterConfigNode): string {
-    if (typeof config.url === 'string') {
-      return config.url;
-    }
-
-    return (
-      getEnv().OTEL_EXPORTER_OTLP_LOGS_ENDPOINT ||
-      getEnv().OTEL_EXPORTER_OTLP_ENDPOINT ||
-      DEFAULT_COLLECTOR_URL
+    super(
+      createOtlpGrpcExportDelegate(
+        convertLegacyOtlpGrpcOptions(config, 'LOGS'),
+        ProtobufLogsSerializer,
+        'LogsExportService',
+        '/opentelemetry.proto.collector.logs.v1.LogsService/Export'
+      )
     );
   }
 }

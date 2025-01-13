@@ -34,10 +34,12 @@ export {
   SumMetricData,
   GaugeMetricData,
   HistogramMetricData,
+  InstrumentType,
   ExponentialHistogramMetricData,
   ResourceMetrics,
   ScopeMetrics,
   MetricData,
+  MetricDescriptor,
   CollectionResult,
 } from './export/MetricData';
 
@@ -54,21 +56,18 @@ export { InMemoryMetricExporter } from './export/InMemoryMetricExporter';
 
 export { ConsoleMetricExporter } from './export/ConsoleMetricExporter';
 
-export { InstrumentDescriptor, InstrumentType } from './InstrumentDescriptor';
+export { MetricCollectOptions, MetricProducer } from './export/MetricProducer';
 
 export { MeterProvider, MeterProviderOptions } from './MeterProvider';
 
-export {
-  DefaultAggregation,
-  ExplicitBucketHistogramAggregation,
-  ExponentialHistogramAggregation,
-  DropAggregation,
-  HistogramAggregation,
-  LastValueAggregation,
-  SumAggregation,
-  Aggregation,
-} from './view/Aggregation';
+export { AggregationOption, AggregationType } from './view/AggregationOption';
 
-export { View, ViewOptions } from './view/View';
+export { ViewOptions } from './view/View';
+
+export {
+  IAttributesProcessor,
+  createAllowListAttributesProcessor,
+  createDenyListAttributesProcessor,
+} from './view/AttributesProcessor';
 
 export { TimeoutError } from './utils';

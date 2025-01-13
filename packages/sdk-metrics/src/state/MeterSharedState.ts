@@ -32,7 +32,10 @@ import { MultiMetricStorage } from './MultiWritableMetricStorage';
 import { ObservableRegistry } from './ObservableRegistry';
 import { SyncMetricStorage } from './SyncMetricStorage';
 import { Accumulation, Aggregator } from '../aggregator/types';
-import { AttributesProcessor } from '../view/AttributesProcessor';
+import {
+  createNoopAttributesProcessor,
+  IAttributesProcessor,
+} from '../view/AttributesProcessor';
 import { MetricStorage } from './MetricStorage';
 
 /**
@@ -78,7 +81,7 @@ export class MeterSharedState {
     collector: MetricCollectorHandle,
     collectionTime: HrTime,
     options?: MetricCollectOptions
-  ): Promise<ScopeMetricsResult> {
+  ): Promise<ScopeMetricsResult | null> {
     /**
      * 1. Call all observable callbacks first.
      * 2. Collect metric result for the collector.
@@ -87,22 +90,28 @@ export class MeterSharedState {
       collectionTime,
       options?.timeoutMillis
     );
-    const metricDataList = Array.from(
-      this.metricStorageRegistry.getStorages(collector)
-    )
+    const storages = this.metricStorageRegistry.getStorages(collector);
+
+    // prevent more allocations if there are no storages.
+    if (storages.length === 0) {
+      return null;
+    }
+
+    const metricDataList = storages
       .map(metricStorage => {
-        return metricStorage.collect(
-          collector,
-          this._meterProviderSharedState.metricCollectors,
-          collectionTime
-        );
+        return metricStorage.collect(collector, collectionTime);
       })
       .filter(isNotNullish);
+
+    // skip this scope if no data was collected (storage created, but no data observed)
+    if (metricDataList.length === 0) {
+      return { errors };
+    }
 
     return {
       scopeMetrics: {
         scope: this._instrumentationScope,
-        metrics: metricDataList.filter(isNotNullish),
+        metrics: metricDataList,
       },
       errors,
     };
@@ -110,7 +119,7 @@ export class MeterSharedState {
 
   private _registerMetricStorage<
     MetricStorageType extends MetricStorageConstructor,
-    R extends InstanceType<MetricStorageType>
+    R extends InstanceType<MetricStorageType>,
   >(
     descriptor: InstrumentDescriptor,
     MetricStorageType: MetricStorageType
@@ -135,7 +144,9 @@ export class MeterSharedState {
       const viewStorage = new MetricStorageType(
         viewDescriptor,
         aggregator,
-        view.attributesProcessor
+        view.attributesProcessor,
+        this._meterProviderSharedState.metricCollectors,
+        view.aggregationCardinalityLimit
       ) as R;
       this.metricStorageRegistry.register(viewStorage);
       return viewStorage;
@@ -155,11 +166,17 @@ export class MeterSharedState {
           if (compatibleStorage != null) {
             return compatibleStorage;
           }
+
           const aggregator = aggregation.createAggregator(descriptor);
+          const cardinalityLimit = collector.selectCardinalityLimit(
+            descriptor.type
+          );
           const storage = new MetricStorageType(
             descriptor,
             aggregator,
-            AttributesProcessor.Noop()
+            createNoopAttributesProcessor(),
+            [collector],
+            cardinalityLimit
           ) as R;
           this.metricStorageRegistry.registerForCollector(collector, storage);
           return storage;
@@ -173,7 +190,7 @@ export class MeterSharedState {
 }
 
 interface ScopeMetricsResult {
-  scopeMetrics: ScopeMetrics;
+  scopeMetrics?: ScopeMetrics;
   errors: unknown[];
 }
 
@@ -181,6 +198,8 @@ interface MetricStorageConstructor {
   new (
     instrumentDescriptor: InstrumentDescriptor,
     aggregator: Aggregator<Maybe<Accumulation>>,
-    attributesProcessor: AttributesProcessor
+    attributesProcessor: IAttributesProcessor,
+    collectors: MetricCollectorHandle[],
+    aggregationCardinalityLimit?: number
   ): MetricStorage;
 }

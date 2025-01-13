@@ -31,14 +31,17 @@ import {
 
 const deltaCollector1: MetricCollectorHandle = {
   selectAggregationTemporality: () => AggregationTemporality.DELTA,
+  selectCardinalityLimit: () => 2000,
 };
 
 const deltaCollector2: MetricCollectorHandle = {
   selectAggregationTemporality: () => AggregationTemporality.DELTA,
+  selectCardinalityLimit: () => 2000,
 };
 
 const cumulativeCollector1: MetricCollectorHandle = {
   selectAggregationTemporality: () => AggregationTemporality.CUMULATIVE,
+  selectCardinalityLimit: () => 2000,
 };
 
 describe('TemporalMetricProcessor', () => {
@@ -48,20 +51,18 @@ describe('TemporalMetricProcessor', () => {
 
   describe('buildMetrics', () => {
     describe('single delta collector', () => {
-      const collectors = [deltaCollector1];
-
       it('should build delta recording metrics', () => {
         const spy = sinon.spy(deltaCollector1, 'selectAggregationTemporality');
 
         const aggregator = new SumAggregator(true);
         const deltaMetricStorage = new DeltaMetricProcessor(aggregator);
-        const temporalMetricStorage = new TemporalMetricProcessor(aggregator);
-
+        const temporalMetricStorage = new TemporalMetricProcessor(aggregator, [
+          deltaCollector1,
+        ]);
         deltaMetricStorage.record(1, {}, api.context.active(), [1, 1]);
         {
           const metric = temporalMetricStorage.buildMetrics(
             deltaCollector1,
-            collectors,
             defaultInstrumentDescriptor,
             deltaMetricStorage.collect(),
             [2, 2]
@@ -81,7 +82,6 @@ describe('TemporalMetricProcessor', () => {
         {
           const metric = temporalMetricStorage.buildMetrics(
             deltaCollector1,
-            collectors,
             defaultInstrumentDescriptor,
             deltaMetricStorage.collect(),
             [4, 4]
@@ -101,19 +101,13 @@ describe('TemporalMetricProcessor', () => {
         {
           const metric = temporalMetricStorage.buildMetrics(
             deltaCollector1,
-            collectors,
             defaultInstrumentDescriptor,
             deltaMetricStorage.collect(),
             [5, 5]
           );
 
-          assertMetricData(
-            metric,
-            DataPointType.SUM,
-            defaultInstrumentDescriptor,
-            AggregationTemporality.DELTA
-          );
-          assert.strictEqual(metric.dataPoints.length, 0);
+          // nothing recorded -> nothing collected
+          assert.equal(metric, undefined);
         }
 
         // selectAggregationTemporality should be called only once.
@@ -122,18 +116,18 @@ describe('TemporalMetricProcessor', () => {
     });
 
     describe('two delta collector', () => {
-      const collectors = [deltaCollector1, deltaCollector2];
-
       it('should build delta recording metrics', () => {
         const aggregator = new SumAggregator(true);
         const deltaMetricStorage = new DeltaMetricProcessor(aggregator);
-        const temporalMetricStorage = new TemporalMetricProcessor(aggregator);
+        const temporalMetricStorage = new TemporalMetricProcessor(aggregator, [
+          deltaCollector1,
+          deltaCollector2,
+        ]);
 
         deltaMetricStorage.record(1, {}, api.context.active(), [1, 1]);
         {
           const metric = temporalMetricStorage.buildMetrics(
             deltaCollector1,
-            collectors,
             defaultInstrumentDescriptor,
             deltaMetricStorage.collect(),
             [2, 2]
@@ -152,7 +146,6 @@ describe('TemporalMetricProcessor', () => {
         {
           const metric = temporalMetricStorage.buildMetrics(
             deltaCollector2,
-            collectors,
             defaultInstrumentDescriptor,
             deltaMetricStorage.collect(),
             [3, 3]
@@ -171,7 +164,6 @@ describe('TemporalMetricProcessor', () => {
     });
 
     describe('single cumulative collector', () => {
-      const collectors = [cumulativeCollector1];
       it('should build delta recording metrics', () => {
         const spy = sinon.spy(
           cumulativeCollector1,
@@ -180,13 +172,14 @@ describe('TemporalMetricProcessor', () => {
 
         const aggregator = new SumAggregator(true);
         const deltaMetricStorage = new DeltaMetricProcessor(aggregator);
-        const temporalMetricStorage = new TemporalMetricProcessor(aggregator);
+        const temporalMetricStorage = new TemporalMetricProcessor(aggregator, [
+          cumulativeCollector1,
+        ]);
 
         deltaMetricStorage.record(1, {}, api.context.active(), [1, 1]);
         {
           const metric = temporalMetricStorage.buildMetrics(
             cumulativeCollector1,
-            collectors,
             defaultInstrumentDescriptor,
             deltaMetricStorage.collect(),
             [2, 2]
@@ -206,7 +199,6 @@ describe('TemporalMetricProcessor', () => {
         {
           const metric = temporalMetricStorage.buildMetrics(
             cumulativeCollector1,
-            collectors,
             defaultInstrumentDescriptor,
             deltaMetricStorage.collect(),
             [4, 4]
@@ -228,17 +220,18 @@ describe('TemporalMetricProcessor', () => {
     });
 
     describe('cumulative collector with delta collector', () => {
-      const collectors = [deltaCollector1, cumulativeCollector1];
       it('should build delta recording metrics', () => {
         const aggregator = new SumAggregator(true);
         const deltaMetricStorage = new DeltaMetricProcessor(aggregator);
-        const temporalMetricStorage = new TemporalMetricProcessor(aggregator);
+        const temporalMetricStorage = new TemporalMetricProcessor(aggregator, [
+          cumulativeCollector1,
+          deltaCollector1,
+        ]);
 
         deltaMetricStorage.record(1, {}, api.context.active(), [1, 1]);
         {
           const metric = temporalMetricStorage.buildMetrics(
             cumulativeCollector1,
-            collectors,
             defaultInstrumentDescriptor,
             deltaMetricStorage.collect(),
             [2, 2]
@@ -258,7 +251,6 @@ describe('TemporalMetricProcessor', () => {
         {
           const metric = temporalMetricStorage.buildMetrics(
             deltaCollector1,
-            collectors,
             defaultInstrumentDescriptor,
             deltaMetricStorage.collect(),
             [4, 4]
@@ -276,7 +268,6 @@ describe('TemporalMetricProcessor', () => {
         {
           const metric = temporalMetricStorage.buildMetrics(
             cumulativeCollector1,
-            collectors,
             defaultInstrumentDescriptor,
             deltaMetricStorage.collect(),
             [5, 5]

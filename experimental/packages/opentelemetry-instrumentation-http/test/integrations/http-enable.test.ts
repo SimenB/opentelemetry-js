@@ -16,9 +16,11 @@
 
 import { SpanKind, Span, context, propagation } from '@opentelemetry/api';
 import {
-  HttpFlavorValues,
-  NetTransportValues,
-  SemanticAttributes,
+  HTTPFLAVORVALUES_HTTP_1_1,
+  NETTRANSPORTVALUES_IP_TCP,
+  SEMATTRS_HTTP_FLAVOR,
+  SEMATTRS_HTTP_HOST,
+  SEMATTRS_NET_TRANSPORT,
 } from '@opentelemetry/semantic-conventions';
 import * as assert from 'assert';
 import * as url from 'url';
@@ -43,7 +45,6 @@ import { Socket } from 'net';
 import { sendRequestTwice } from '../utils/rawRequest';
 
 const protocol = 'http';
-const serverPort = 32345;
 const hostname = 'localhost';
 const memoryExporter = new InMemorySpanExporter();
 
@@ -128,22 +129,16 @@ describe('HttpInstrumentation Integration tests', () => {
       });
     });
 
-    const provider = new NodeTracerProvider();
-    provider.addSpanProcessor(new SimpleSpanProcessor(memoryExporter));
+    const provider = new NodeTracerProvider({
+      spanProcessors: [new SimpleSpanProcessor(memoryExporter)],
+    });
     instrumentation.setTracerProvider(provider);
     beforeEach(() => {
       memoryExporter.reset();
     });
 
     before(() => {
-      const ignoreConfig = [
-        `${protocol}://${hostname}:${serverPort}/ignored/string`,
-        /\/ignored\/regexp$/i,
-        (url: string) => url.endsWith('/ignored/function'),
-      ];
       instrumentation.setConfig({
-        ignoreIncomingPaths: ignoreConfig,
-        ignoreOutgoingUrls: ignoreConfig,
         applyCustomAttributesOnSpan: customAttributeFunction,
       });
       instrumentation.enable();
@@ -236,12 +231,12 @@ describe('HttpInstrumentation Integration tests', () => {
       assert.strictEqual(span.name, 'GET');
       assert.strictEqual(result.reqHeaders['x-foo'], 'foo');
       assert.strictEqual(
-        span.attributes[SemanticAttributes.HTTP_FLAVOR],
-        HttpFlavorValues.HTTP_1_1
+        span.attributes[SEMATTRS_HTTP_FLAVOR],
+        HTTPFLAVORVALUES_HTTP_1_1
       );
       assert.strictEqual(
-        span.attributes[SemanticAttributes.NET_TRANSPORT],
-        NetTransportValues.IP_TCP
+        span.attributes[SEMATTRS_NET_TRANSPORT],
+        NETTRANSPORTVALUES_IP_TCP
       );
       assertSpan(span, SpanKind.CLIENT, validations);
     });
@@ -267,6 +262,34 @@ describe('HttpInstrumentation Integration tests', () => {
       assert.strictEqual(span.name, 'GET');
       assert.strictEqual(span.attributes['span kind'], SpanKind.CLIENT);
       assertSpan(span, SpanKind.CLIENT, validations);
+    });
+
+    it('should not mutate given headers object when adding propagation headers', async () => {
+      const spans = memoryExporter.getFinishedSpans();
+      assert.strictEqual(spans.length, 0);
+
+      const headers = { 'x-foo': 'foo' };
+      const result = await httpRequest.get(
+        new url.URL(`${protocol}://localhost:${mockServerPort}/?query=test`),
+        { headers }
+      );
+      assert.deepStrictEqual(headers, { 'x-foo': 'foo' });
+      assert.ok(result.reqHeaders[DummyPropagation.TRACE_CONTEXT_KEY]);
+      assert.ok(result.reqHeaders[DummyPropagation.SPAN_CONTEXT_KEY]);
+    });
+
+    it('should succeed even with malformed Forwarded header', async () => {
+      const spans = memoryExporter.getFinishedSpans();
+      assert.strictEqual(spans.length, 0);
+
+      const headers = { 'x-foo': 'foo', forwarded: 'malformed' };
+      const result = await httpRequest.get(
+        new url.URL(`${protocol}://localhost:${mockServerPort}/?query=test`),
+        { headers }
+      );
+
+      assert.ok(result.reqHeaders[DummyPropagation.TRACE_CONTEXT_KEY]);
+      assert.ok(result.reqHeaders[DummyPropagation.SPAN_CONTEXT_KEY]);
     });
 
     it('should create a span for GET requests and add propagation headers with Expect headers', async () => {
@@ -383,7 +406,7 @@ describe('HttpInstrumentation Integration tests', () => {
       assert.ok(span);
       assert.strictEqual(span.name, 'GET');
       assert.strictEqual(
-        span.attributes[SemanticAttributes.HTTP_HOST],
+        span.attributes[SEMATTRS_HTTP_HOST],
         `localhost:${mockServerPort}`
       );
     });

@@ -14,12 +14,22 @@
  * limitations under the License.
  */
 
-export * from './common/types';
-export * from './metrics/types';
-export * from './resource/types';
-export * from './trace/types';
-export * from './logs/types';
+export {
+  IExportMetricsPartialSuccess,
+  IExportMetricsServiceResponse,
+} from './metrics';
+export {
+  IExportTracePartialSuccess,
+  IExportTraceServiceResponse,
+} from './trace';
+export { IExportLogsServiceResponse, IExportLogsPartialSuccess } from './logs';
 
-export { createExportTraceServiceRequest } from './trace';
-export { createExportMetricsServiceRequest } from './metrics';
-export { createExportLogsServiceRequest } from './logs';
+export { ProtobufLogsSerializer } from './logs/protobuf';
+export { ProtobufMetricsSerializer } from './metrics/protobuf';
+export { ProtobufTraceSerializer } from './trace/protobuf';
+
+export { JsonLogsSerializer } from './logs/json';
+export { JsonMetricsSerializer } from './metrics/json';
+export { JsonTraceSerializer } from './trace/json';
+
+export { ISerializer } from './i-serializer';

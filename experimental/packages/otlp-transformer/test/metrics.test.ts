@@ -18,14 +18,17 @@ import { Resource } from '@opentelemetry/resources';
 import {
   AggregationTemporality,
   DataPointType,
-  InstrumentType,
   MetricData,
   ResourceMetrics,
 } from '@opentelemetry/sdk-metrics';
 import * as assert from 'assert';
-import { createExportMetricsServiceRequest } from '../src/metrics';
-import { EAggregationTemporality } from '../src/metrics/types';
+import { createExportMetricsServiceRequest } from '../src/metrics/internal';
+import { EAggregationTemporality } from '../src/metrics/internal-types';
 import { hrTime, hrTimeToNanoseconds } from '@opentelemetry/core';
+import * as root from '../src/generated/root';
+import { encodeAsLongBits, encodeAsString } from '../src/common/utils';
+import { ProtobufMetricsSerializer } from '../src/metrics/protobuf';
+import { JsonMetricsSerializer } from '../src/metrics/json';
 
 const START_TIME = hrTime();
 const END_TIME = hrTime();
@@ -38,293 +41,286 @@ const ATTRIBUTES = {
 };
 
 describe('Metrics', () => {
-  describe('createExportMetricsServiceRequest', () => {
-    const expectedResource = {
-      attributes: [
+  const expectedResource = {
+    attributes: [
+      {
+        key: 'resource-attribute',
+        value: {
+          stringValue: 'resource attribute value',
+        },
+      },
+    ],
+    droppedAttributesCount: 0,
+  };
+
+  const expectedScope = {
+    name: 'mylib',
+    version: '0.1.0',
+  };
+
+  const expectedSchemaUrl = 'http://url.to.schema';
+
+  const expectedAttributes = [
+    {
+      key: 'string-attribute',
+      value: {
+        stringValue: 'some attribute value',
+      },
+    },
+    {
+      key: 'int-attribute',
+      value: {
+        intValue: 1,
+      },
+    },
+    {
+      key: 'double-attribute',
+      value: {
+        doubleValue: 1.1,
+      },
+    },
+    {
+      key: 'boolean-attribute',
+      value: {
+        boolValue: true,
+      },
+    },
+    {
+      key: 'array-attribute',
+      value: {
+        arrayValue: {
+          values: [
+            {
+              stringValue: 'attribute value 1',
+            },
+            {
+              stringValue: 'attribute value 2',
+            },
+          ],
+        },
+      },
+    },
+  ];
+
+  function createCounterData(
+    value: number,
+    aggregationTemporality: AggregationTemporality
+  ): MetricData {
+    return {
+      descriptor: {
+        description: 'this is a description',
+        name: 'counter',
+        unit: '1',
+        valueType: ValueType.INT,
+      },
+      aggregationTemporality,
+      dataPointType: DataPointType.SUM,
+      isMonotonic: true,
+      dataPoints: [
         {
-          key: 'resource-attribute',
-          value: {
-            stringValue: 'resource attribute value',
-          },
+          value: value,
+          startTime: START_TIME,
+          endTime: END_TIME,
+          attributes: ATTRIBUTES,
         },
       ],
-      droppedAttributesCount: 0,
     };
+  }
 
-    const expectedScope = {
-      name: 'mylib',
-      version: '0.1.0',
+  function createUpDownCounterData(
+    value: number,
+    aggregationTemporality: AggregationTemporality
+  ): MetricData {
+    return {
+      descriptor: {
+        description: 'this is a description',
+        name: 'up-down-counter',
+        unit: '1',
+        valueType: ValueType.INT,
+      },
+      aggregationTemporality,
+      dataPointType: DataPointType.SUM,
+      isMonotonic: false,
+      dataPoints: [
+        {
+          value: value,
+          startTime: START_TIME,
+          endTime: END_TIME,
+          attributes: ATTRIBUTES,
+        },
+      ],
     };
+  }
 
-    const expectedSchemaUrl = 'http://url.to.schema';
-
-    const expectedAttributes = [
-      {
-        key: 'string-attribute',
-        value: {
-          stringValue: 'some attribute value',
-        },
+  function createObservableCounterData(
+    value: number,
+    aggregationTemporality: AggregationTemporality
+  ): MetricData {
+    return {
+      descriptor: {
+        description: 'this is a description',
+        name: 'observable-counter',
+        unit: '1',
+        valueType: ValueType.INT,
       },
-      {
-        key: 'int-attribute',
-        value: {
-          intValue: 1,
+      aggregationTemporality,
+      dataPointType: DataPointType.SUM,
+      isMonotonic: true,
+      dataPoints: [
+        {
+          value: value,
+          startTime: START_TIME,
+          endTime: END_TIME,
+          attributes: ATTRIBUTES,
         },
+      ],
+    };
+  }
+
+  function createObservableUpDownCounterData(
+    value: number,
+    aggregationTemporality: AggregationTemporality
+  ): MetricData {
+    return {
+      descriptor: {
+        description: 'this is a description',
+        name: 'observable-up-down-counter',
+        unit: '1',
+        valueType: ValueType.INT,
       },
-      {
-        key: 'double-attribute',
-        value: {
-          doubleValue: 1.1,
+      aggregationTemporality,
+      dataPointType: DataPointType.SUM,
+      isMonotonic: false,
+      dataPoints: [
+        {
+          value: value,
+          startTime: START_TIME,
+          endTime: END_TIME,
+          attributes: ATTRIBUTES,
         },
+      ],
+    };
+  }
+
+  function createObservableGaugeData(value: number): MetricData {
+    return {
+      descriptor: {
+        description: 'this is a description',
+        name: 'gauge',
+        unit: '1',
+        valueType: ValueType.DOUBLE,
       },
-      {
-        key: 'boolean-attribute',
-        value: {
-          boolValue: true,
+      aggregationTemporality: AggregationTemporality.CUMULATIVE,
+      dataPointType: DataPointType.GAUGE,
+      dataPoints: [
+        {
+          value: value,
+          startTime: START_TIME,
+          endTime: END_TIME,
+          attributes: ATTRIBUTES,
         },
+      ],
+    };
+  }
+
+  function createHistogramMetrics(
+    count: number,
+    sum: number,
+    boundaries: number[],
+    counts: number[],
+    aggregationTemporality: AggregationTemporality,
+    min?: number,
+    max?: number
+  ): MetricData {
+    return {
+      descriptor: {
+        description: 'this is a description',
+        name: 'hist',
+        unit: '1',
+        valueType: ValueType.INT,
       },
-      {
-        key: 'array-attribute',
-        value: {
-          arrayValue: {
-            values: [
-              {
-                stringValue: 'attribute value 1',
-              },
-              {
-                stringValue: 'attribute value 2',
-              },
-            ],
-          },
-        },
-      },
-    ];
-
-    function createCounterData(
-      value: number,
-      aggregationTemporality: AggregationTemporality
-    ): MetricData {
-      return {
-        descriptor: {
-          description: 'this is a description',
-          type: InstrumentType.COUNTER,
-          name: 'counter',
-          unit: '1',
-          valueType: ValueType.INT,
-        },
-        aggregationTemporality,
-        dataPointType: DataPointType.SUM,
-        isMonotonic: true,
-        dataPoints: [
-          {
-            value: value,
-            startTime: START_TIME,
-            endTime: END_TIME,
-            attributes: ATTRIBUTES,
-          },
-        ],
-      };
-    }
-
-    function createUpDownCounterData(
-      value: number,
-      aggregationTemporality: AggregationTemporality
-    ): MetricData {
-      return {
-        descriptor: {
-          description: 'this is a description',
-          type: InstrumentType.UP_DOWN_COUNTER,
-          name: 'up-down-counter',
-          unit: '1',
-          valueType: ValueType.INT,
-        },
-        aggregationTemporality,
-        dataPointType: DataPointType.SUM,
-        isMonotonic: false,
-        dataPoints: [
-          {
-            value: value,
-            startTime: START_TIME,
-            endTime: END_TIME,
-            attributes: ATTRIBUTES,
-          },
-        ],
-      };
-    }
-
-    function createObservableCounterData(
-      value: number,
-      aggregationTemporality: AggregationTemporality
-    ): MetricData {
-      return {
-        descriptor: {
-          description: 'this is a description',
-          type: InstrumentType.OBSERVABLE_COUNTER,
-          name: 'observable-counter',
-          unit: '1',
-          valueType: ValueType.INT,
-        },
-        aggregationTemporality,
-        dataPointType: DataPointType.SUM,
-        isMonotonic: true,
-        dataPoints: [
-          {
-            value: value,
-            startTime: START_TIME,
-            endTime: END_TIME,
-            attributes: ATTRIBUTES,
-          },
-        ],
-      };
-    }
-
-    function createObservableUpDownCounterData(
-      value: number,
-      aggregationTemporality: AggregationTemporality
-    ): MetricData {
-      return {
-        descriptor: {
-          description: 'this is a description',
-          type: InstrumentType.OBSERVABLE_UP_DOWN_COUNTER,
-          name: 'observable-up-down-counter',
-          unit: '1',
-          valueType: ValueType.INT,
-        },
-        aggregationTemporality,
-        dataPointType: DataPointType.SUM,
-        isMonotonic: false,
-        dataPoints: [
-          {
-            value: value,
-            startTime: START_TIME,
-            endTime: END_TIME,
-            attributes: ATTRIBUTES,
-          },
-        ],
-      };
-    }
-
-    function createObservableGaugeData(value: number): MetricData {
-      return {
-        descriptor: {
-          description: 'this is a description',
-          type: InstrumentType.OBSERVABLE_GAUGE,
-          name: 'gauge',
-          unit: '1',
-          valueType: ValueType.DOUBLE,
-        },
-        aggregationTemporality: AggregationTemporality.CUMULATIVE,
-        dataPointType: DataPointType.GAUGE,
-        dataPoints: [
-          {
-            value: value,
-            startTime: START_TIME,
-            endTime: END_TIME,
-            attributes: ATTRIBUTES,
-          },
-        ],
-      };
-    }
-
-    function createHistogramMetrics(
-      count: number,
-      sum: number,
-      boundaries: number[],
-      counts: number[],
-      aggregationTemporality: AggregationTemporality,
-      min?: number,
-      max?: number
-    ): MetricData {
-      return {
-        descriptor: {
-          description: 'this is a description',
-          type: InstrumentType.HISTOGRAM,
-          name: 'hist',
-          unit: '1',
-          valueType: ValueType.INT,
-        },
-        aggregationTemporality,
-        dataPointType: DataPointType.HISTOGRAM,
-        dataPoints: [
-          {
-            value: {
-              sum: sum,
-              count: count,
-              min: min,
-              max: max,
-              buckets: {
-                boundaries: boundaries,
-                counts: counts,
-              },
+      aggregationTemporality,
+      dataPointType: DataPointType.HISTOGRAM,
+      dataPoints: [
+        {
+          value: {
+            sum: sum,
+            count: count,
+            min: min,
+            max: max,
+            buckets: {
+              boundaries: boundaries,
+              counts: counts,
             },
-            startTime: START_TIME,
-            endTime: END_TIME,
-            attributes: ATTRIBUTES,
           },
-        ],
-      };
-    }
-
-    function createExponentialHistogramMetrics(
-      count: number,
-      sum: number,
-      scale: number,
-      zeroCount: number,
-      positive: { offset: number; bucketCounts: number[] },
-      negative: { offset: number; bucketCounts: number[] },
-      aggregationTemporality: AggregationTemporality,
-      min?: number,
-      max?: number
-    ): MetricData {
-      return {
-        descriptor: {
-          description: 'this is a description',
-          type: InstrumentType.HISTOGRAM,
-          name: 'xhist',
-          unit: '1',
-          valueType: ValueType.INT,
+          startTime: START_TIME,
+          endTime: END_TIME,
+          attributes: ATTRIBUTES,
         },
-        aggregationTemporality,
-        dataPointType: DataPointType.EXPONENTIAL_HISTOGRAM,
-        dataPoints: [
-          {
-            value: {
-              sum: sum,
-              count: count,
-              min: min,
-              max: max,
-              zeroCount: zeroCount,
-              scale: scale,
-              positive: positive,
-              negative: negative,
-            },
-            startTime: START_TIME,
-            endTime: END_TIME,
-            attributes: ATTRIBUTES,
-          },
-        ],
-      };
-    }
+      ],
+    };
+  }
 
-    function createResourceMetrics(metricData: MetricData[]): ResourceMetrics {
-      const resource = new Resource({
-        'resource-attribute': 'resource attribute value',
-      });
-      return {
-        resource: resource,
-        scopeMetrics: [
-          {
-            scope: {
-              name: 'mylib',
-              version: '0.1.0',
-              schemaUrl: expectedSchemaUrl,
-            },
-            metrics: metricData,
+  function createExponentialHistogramMetrics(
+    count: number,
+    sum: number,
+    scale: number,
+    zeroCount: number,
+    positive: { offset: number; bucketCounts: number[] },
+    negative: { offset: number; bucketCounts: number[] },
+    aggregationTemporality: AggregationTemporality,
+    min?: number,
+    max?: number
+  ): MetricData {
+    return {
+      descriptor: {
+        description: 'this is a description',
+        name: 'xhist',
+        unit: '1',
+        valueType: ValueType.INT,
+      },
+      aggregationTemporality,
+      dataPointType: DataPointType.EXPONENTIAL_HISTOGRAM,
+      dataPoints: [
+        {
+          value: {
+            sum: sum,
+            count: count,
+            min: min,
+            max: max,
+            zeroCount: zeroCount,
+            scale: scale,
+            positive: positive,
+            negative: negative,
           },
-        ],
-      };
-    }
+          startTime: START_TIME,
+          endTime: END_TIME,
+          attributes: ATTRIBUTES,
+        },
+      ],
+    };
+  }
 
+  function createResourceMetrics(metricData: MetricData[]): ResourceMetrics {
+    const resource = new Resource({
+      'resource-attribute': 'resource attribute value',
+    });
+    return {
+      resource: resource,
+      scopeMetrics: [
+        {
+          scope: {
+            name: 'mylib',
+            version: '0.1.0',
+            schemaUrl: expectedSchemaUrl,
+          },
+          metrics: metricData,
+        },
+      ],
+    };
+  }
+
+  describe('createExportMetricsServiceRequest', () => {
     it('serializes a monotonic sum metric record', () => {
       const metrics = createResourceMetrics([
         createCounterData(10, AggregationTemporality.DELTA),
@@ -350,8 +346,8 @@ describe('Metrics', () => {
                       dataPoints: [
                         {
                           attributes: expectedAttributes,
-                          startTimeUnixNano: hrTimeToNanoseconds(START_TIME),
-                          timeUnixNano: hrTimeToNanoseconds(END_TIME),
+                          startTimeUnixNano: encodeAsLongBits(START_TIME),
+                          timeUnixNano: encodeAsLongBits(END_TIME),
                           asInt: 10,
                         },
                       ],
@@ -393,8 +389,8 @@ describe('Metrics', () => {
                       dataPoints: [
                         {
                           attributes: expectedAttributes,
-                          startTimeUnixNano: hrTimeToNanoseconds(START_TIME),
-                          timeUnixNano: hrTimeToNanoseconds(END_TIME),
+                          startTimeUnixNano: encodeAsLongBits(START_TIME),
+                          timeUnixNano: encodeAsLongBits(END_TIME),
                           asInt: 10,
                         },
                       ],
@@ -437,8 +433,8 @@ describe('Metrics', () => {
                       dataPoints: [
                         {
                           attributes: expectedAttributes,
-                          startTimeUnixNano: hrTimeToNanoseconds(START_TIME),
-                          timeUnixNano: hrTimeToNanoseconds(END_TIME),
+                          startTimeUnixNano: encodeAsLongBits(START_TIME),
+                          timeUnixNano: encodeAsLongBits(END_TIME),
                           asInt: 10,
                         },
                       ],
@@ -481,8 +477,8 @@ describe('Metrics', () => {
                       dataPoints: [
                         {
                           attributes: expectedAttributes,
-                          startTimeUnixNano: hrTimeToNanoseconds(START_TIME),
-                          timeUnixNano: hrTimeToNanoseconds(END_TIME),
+                          startTimeUnixNano: encodeAsLongBits(START_TIME),
+                          timeUnixNano: encodeAsLongBits(END_TIME),
                           asInt: 10,
                         },
                       ],
@@ -523,8 +519,8 @@ describe('Metrics', () => {
                       dataPoints: [
                         {
                           attributes: expectedAttributes,
-                          startTimeUnixNano: hrTimeToNanoseconds(START_TIME),
-                          timeUnixNano: hrTimeToNanoseconds(END_TIME),
+                          startTimeUnixNano: encodeAsLongBits(START_TIME),
+                          timeUnixNano: encodeAsLongBits(END_TIME),
                           asDouble: 10.5,
                         },
                       ],
@@ -581,8 +577,8 @@ describe('Metrics', () => {
                             sum: 9,
                             min: 1,
                             max: 8,
-                            startTimeUnixNano: hrTimeToNanoseconds(START_TIME),
-                            timeUnixNano: hrTimeToNanoseconds(END_TIME),
+                            startTimeUnixNano: encodeAsLongBits(START_TIME),
+                            timeUnixNano: encodeAsLongBits(END_TIME),
                           },
                         ],
                       },
@@ -635,8 +631,8 @@ describe('Metrics', () => {
                             sum: 9,
                             min: undefined,
                             max: undefined,
-                            startTimeUnixNano: hrTimeToNanoseconds(START_TIME),
-                            timeUnixNano: hrTimeToNanoseconds(END_TIME),
+                            startTimeUnixNano: encodeAsLongBits(START_TIME),
+                            timeUnixNano: encodeAsLongBits(END_TIME),
                           },
                         ],
                       },
@@ -701,8 +697,8 @@ describe('Metrics', () => {
                               bucketCounts: [1, 0, 0, 0, 1, 0, 1, 0],
                             },
                             negative: { offset: 0, bucketCounts: [0] },
-                            startTimeUnixNano: hrTimeToNanoseconds(START_TIME),
-                            timeUnixNano: hrTimeToNanoseconds(END_TIME),
+                            startTimeUnixNano: encodeAsLongBits(START_TIME),
+                            timeUnixNano: encodeAsLongBits(END_TIME),
                           },
                         ],
                       },
@@ -763,8 +759,8 @@ describe('Metrics', () => {
                               bucketCounts: [1, 0, 0, 0, 1, 0, 1, 0],
                             },
                             negative: { offset: 0, bucketCounts: [0] },
-                            startTimeUnixNano: hrTimeToNanoseconds(START_TIME),
-                            timeUnixNano: hrTimeToNanoseconds(END_TIME),
+                            startTimeUnixNano: encodeAsLongBits(START_TIME),
+                            timeUnixNano: encodeAsLongBits(END_TIME),
                           },
                         ],
                       },
@@ -776,6 +772,162 @@ describe('Metrics', () => {
           ],
         });
       });
+    });
+  });
+
+  describe('ProtobufMetricsSerializer', function () {
+    it('serializes an export request', () => {
+      const serialized = ProtobufMetricsSerializer.serializeRequest(
+        createResourceMetrics([
+          createCounterData(10, AggregationTemporality.DELTA),
+        ])
+      );
+      assert.ok(serialized, 'serialized response is undefined');
+      const decoded =
+        root.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest.decode(
+          serialized
+        );
+
+      const decodedObj =
+        root.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest.toObject(
+          decoded,
+          {
+            longs: Number,
+          }
+        );
+
+      const expected = {
+        resourceMetrics: [
+          {
+            resource: expectedResource,
+            scopeMetrics: [
+              {
+                scope: expectedScope,
+                schemaUrl: expectedSchemaUrl,
+                metrics: [
+                  {
+                    name: 'counter',
+                    description: 'this is a description',
+                    unit: '1',
+                    sum: {
+                      dataPoints: [
+                        {
+                          attributes: expectedAttributes,
+                          startTimeUnixNano: hrTimeToNanoseconds(START_TIME),
+                          timeUnixNano: hrTimeToNanoseconds(END_TIME),
+                          asInt: 10,
+                        },
+                      ],
+                      aggregationTemporality:
+                        EAggregationTemporality.AGGREGATION_TEMPORALITY_DELTA,
+                      isMonotonic: true,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+      assert.deepStrictEqual(decodedObj, expected);
+    });
+
+    it('deserializes a response', () => {
+      const protobufSerializedResponse =
+        root.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceResponse.encode(
+          {
+            partialSuccess: {
+              errorMessage: 'foo',
+              rejectedDataPoints: 1,
+            },
+          }
+        ).finish();
+
+      const deserializedResponse =
+        ProtobufMetricsSerializer.deserializeResponse(
+          protobufSerializedResponse
+        );
+
+      assert.ok(
+        deserializedResponse.partialSuccess,
+        'partialSuccess not present in the deserialized message'
+      );
+      assert.equal(deserializedResponse.partialSuccess.errorMessage, 'foo');
+      assert.equal(
+        Number(deserializedResponse.partialSuccess.rejectedDataPoints),
+        1
+      );
+    });
+  });
+
+  describe('JsonMetricsSerializer', function () {
+    it('serializes an export request', () => {
+      const serialized = JsonMetricsSerializer.serializeRequest(
+        createResourceMetrics([
+          createCounterData(10, AggregationTemporality.DELTA),
+        ])
+      );
+
+      const decoder = new TextDecoder();
+      const expected = {
+        resourceMetrics: [
+          {
+            resource: expectedResource,
+            scopeMetrics: [
+              {
+                scope: expectedScope,
+                schemaUrl: expectedSchemaUrl,
+                metrics: [
+                  {
+                    name: 'counter',
+                    description: 'this is a description',
+                    unit: '1',
+                    sum: {
+                      dataPoints: [
+                        {
+                          attributes: expectedAttributes,
+                          startTimeUnixNano: encodeAsString(START_TIME),
+                          timeUnixNano: encodeAsString(END_TIME),
+                          asInt: 10,
+                        },
+                      ],
+                      aggregationTemporality:
+                        EAggregationTemporality.AGGREGATION_TEMPORALITY_DELTA,
+                      isMonotonic: true,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+
+      assert.deepStrictEqual(JSON.parse(decoder.decode(serialized)), expected);
+    });
+
+    it('deserializes a response', () => {
+      const expectedResponse = {
+        partialSuccess: {
+          errorMessage: 'foo',
+          rejectedDataPoints: 1,
+        },
+      };
+      const encoder = new TextEncoder();
+      const encodedResponse = encoder.encode(JSON.stringify(expectedResponse));
+
+      const deserializedResponse =
+        JsonMetricsSerializer.deserializeResponse(encodedResponse);
+
+      assert.ok(
+        deserializedResponse.partialSuccess,
+        'partialSuccess not present in the deserialized message'
+      );
+      assert.equal(deserializedResponse.partialSuccess.errorMessage, 'foo');
+      assert.equal(
+        Number(deserializedResponse.partialSuccess.rejectedDataPoints),
+        1
+      );
     });
   });
 });

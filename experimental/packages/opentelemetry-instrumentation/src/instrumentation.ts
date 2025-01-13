@@ -23,40 +23,45 @@ import {
   trace,
   Tracer,
   TracerProvider,
+  Span,
 } from '@opentelemetry/api';
+import { Logger, LoggerProvider, logs } from '@opentelemetry/api-logs';
 import * as shimmer from 'shimmer';
-import { InstrumentationModuleDefinition } from './platform/node';
-import * as types from './types';
+import {
+  InstrumentationModuleDefinition,
+  Instrumentation,
+  InstrumentationConfig,
+  SpanCustomizationHook,
+} from './types';
 
 /**
  * Base abstract internal class for instrumenting node and web plugins
  */
-export abstract class InstrumentationAbstract<T = any>
-  implements types.Instrumentation
+export abstract class InstrumentationAbstract<
+  ConfigType extends InstrumentationConfig = InstrumentationConfig,
+> implements Instrumentation<ConfigType>
 {
-  protected _config: types.InstrumentationConfig;
+  protected _config: ConfigType = {} as ConfigType;
 
   private _tracer: Tracer;
   private _meter: Meter;
+  private _logger: Logger;
   protected _diag: DiagLogger;
 
   constructor(
     public readonly instrumentationName: string,
     public readonly instrumentationVersion: string,
-    config: types.InstrumentationConfig = {}
+    config: ConfigType
   ) {
-    this._config = {
-      enabled: true,
-      ...config,
-    };
+    this.setConfig(config);
 
     this._diag = diag.createComponentLogger({
       namespace: instrumentationName,
     });
 
     this._tracer = trace.getTracer(instrumentationName, instrumentationVersion);
-
     this._meter = metrics.getMeter(instrumentationName, instrumentationVersion);
+    this._logger = logs.getLogger(instrumentationName, instrumentationVersion);
     this._updateMetricInstruments();
   }
 
@@ -87,6 +92,39 @@ export abstract class InstrumentationAbstract<T = any>
     this._updateMetricInstruments();
   }
 
+  /* Returns logger */
+  protected get logger(): Logger {
+    return this._logger;
+  }
+
+  /**
+   * Sets LoggerProvider to this plugin
+   * @param loggerProvider
+   */
+  public setLoggerProvider(loggerProvider: LoggerProvider): void {
+    this._logger = loggerProvider.getLogger(
+      this.instrumentationName,
+      this.instrumentationVersion
+    );
+  }
+
+  /**
+   * @experimental
+   *
+   * Get module definitions defined by {@link init}.
+   * This can be used for experimental compile-time instrumentation.
+   *
+   * @returns an array of {@link InstrumentationModuleDefinition}
+   */
+  public getModuleDefinitions(): InstrumentationModuleDefinition[] {
+    const initResult = this.init() ?? [];
+    if (!Array.isArray(initResult)) {
+      return [initResult];
+    }
+
+    return initResult;
+  }
+
   /**
    * Sets the new metric instruments with the current Meter.
    */
@@ -95,16 +133,21 @@ export abstract class InstrumentationAbstract<T = any>
   }
 
   /* Returns InstrumentationConfig */
-  public getConfig(): types.InstrumentationConfig {
+  public getConfig(): ConfigType {
     return this._config;
   }
 
   /**
    * Sets InstrumentationConfig to this plugin
-   * @param InstrumentationConfig
+   * @param config
    */
-  public setConfig(config: types.InstrumentationConfig = {}): void {
-    this._config = Object.assign({}, config);
+  public setConfig(config: ConfigType): void {
+    // copy config first level properties to ensure they are immutable.
+    // nested properties are not copied, thus are mutable from the outside.
+    this._config = {
+      enabled: true,
+      ...config,
+    };
   }
 
   /**
@@ -123,18 +166,47 @@ export abstract class InstrumentationAbstract<T = any>
     return this._tracer;
   }
 
-  /* Disable plugin */
+  /* Enable plugin */
   public abstract enable(): void;
 
-  /* Enable plugin */
+  /* Disable plugin */
   public abstract disable(): void;
 
   /**
    * Init method in which plugin should define _modules and patches for
-   * methods
+   * methods.
    */
   protected abstract init():
-    | InstrumentationModuleDefinition<T>
-    | InstrumentationModuleDefinition<T>[]
+    | InstrumentationModuleDefinition
+    | InstrumentationModuleDefinition[]
     | void;
+
+  /**
+   * Execute span customization hook, if configured, and log any errors.
+   * Any semantics of the trigger and info are defined by the specific instrumentation.
+   * @param hookHandler The optional hook handler which the user has configured via instrumentation config
+   * @param triggerName The name of the trigger for executing the hook for logging purposes
+   * @param span The span to which the hook should be applied
+   * @param info The info object to be passed to the hook, with useful data the hook may use
+   */
+  protected _runSpanCustomizationHook<SpanCustomizationInfoType>(
+    hookHandler: SpanCustomizationHook<SpanCustomizationInfoType> | undefined,
+    triggerName: string,
+    span: Span,
+    info: SpanCustomizationInfoType
+  ) {
+    if (!hookHandler) {
+      return;
+    }
+
+    try {
+      hookHandler(span, info);
+    } catch (e) {
+      this._diag.error(
+        `Error running span customization hook due to exception in handler`,
+        { triggerName },
+        e
+      );
+    }
+  }
 }

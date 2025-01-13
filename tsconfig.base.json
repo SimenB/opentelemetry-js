@@ -9,6 +9,7 @@
     "incremental": true,
     "inlineSources": true,
     "module": "commonjs",
+    "moduleResolution": "node16",
     "newLine": "LF",
     "noEmitOnError": true,
     "noFallthroughCasesInSwitch": true,
@@ -22,7 +23,11 @@
     "strictNullChecks": true,
     "target": "es2017",
     "useUnknownInCatchVariables": false,
-    "importHelpers": true
+    "lib": [
+      "es2017",
+      "dom",
+      "dom.iterable"
+    ]
   },
   "exclude": [
     "node_modules"

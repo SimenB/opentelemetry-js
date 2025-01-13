@@ -19,39 +19,30 @@ import type {
   LogRecordExporter,
 } from '@opentelemetry/sdk-logs';
 import type { OTLPExporterNodeConfigBase } from '@opentelemetry/otlp-exporter-base';
-import type { IExportLogsServiceRequest } from '@opentelemetry/otlp-transformer';
-import { getEnv, baggageUtils } from '@opentelemetry/core';
-import { OTLPExporterNodeBase } from '@opentelemetry/otlp-exporter-base';
-import { createExportLogsServiceRequest } from '@opentelemetry/otlp-transformer';
-
-import { getDefaultUrl } from '../config';
+import { OTLPExporterBase } from '@opentelemetry/otlp-exporter-base';
+import { JsonLogsSerializer } from '@opentelemetry/otlp-transformer';
+import { VERSION } from '../../version';
+import {
+  convertLegacyHttpOptions,
+  createOtlpHttpExportDelegate,
+} from '@opentelemetry/otlp-exporter-base/node-http';
 
 /**
  * Collector Logs Exporter for Node
  */
 export class OTLPLogExporter
-  extends OTLPExporterNodeBase<ReadableLogRecord, IExportLogsServiceRequest>
+  extends OTLPExporterBase<ReadableLogRecord[]>
   implements LogRecordExporter
 {
   constructor(config: OTLPExporterNodeConfigBase = {}) {
-    // load  OTEL_EXPORTER_OTLP_LOGS_TIMEOUT env
-    super({
-      timeoutMillis: getEnv().OTEL_EXPORTER_OTLP_LOGS_TIMEOUT,
-      ...config,
-    });
-    this.headers = {
-      ...this.headers,
-      ...baggageUtils.parseKeyPairsIntoRecord(
-        getEnv().OTEL_EXPORTER_OTLP_LOGS_HEADERS
-      ),
-    };
-  }
-
-  convert(logRecords: ReadableLogRecord[]): IExportLogsServiceRequest {
-    return createExportLogsServiceRequest(logRecords, true);
-  }
-
-  getDefaultUrl(config: OTLPExporterNodeConfigBase): string {
-    return getDefaultUrl(config);
+    super(
+      createOtlpHttpExportDelegate(
+        convertLegacyHttpOptions(config, 'LOGS', 'v1/logs', {
+          'User-Agent': `OTel-OTLP-Exporter-JavaScript/${VERSION}`,
+          'Content-Type': 'application/json',
+        }),
+        JsonLogsSerializer
+      )
+    );
   }
 }

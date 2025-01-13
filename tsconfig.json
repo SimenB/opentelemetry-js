@@ -26,10 +26,12 @@
       "experimental/packages/opentelemetry-sdk-node",
       "experimental/packages/otlp-exporter-base",
       "experimental/packages/otlp-grpc-exporter-base",
-      "experimental/packages/otlp-proto-exporter-base",
       "experimental/packages/otlp-transformer",
+      "experimental/packages/sampler-jaeger-remote",
+      "experimental/packages/sdk-events",
       "experimental/packages/sdk-logs",
       "experimental/packages/shim-opencensus",
+      "experimental/packages/web-common",
       "packages/opentelemetry-context-async-hooks",
       "packages/opentelemetry-context-zone",
       "packages/opentelemetry-context-zone-peer-dep",
@@ -42,9 +44,9 @@
       "packages/opentelemetry-sdk-trace-base",
       "packages/opentelemetry-sdk-trace-node",
       "packages/opentelemetry-sdk-trace-web",
-      "packages/opentelemetry-semantic-conventions",
       "packages/opentelemetry-shim-opentracing",
-      "packages/sdk-metrics"
+      "packages/sdk-metrics",
+      "semantic-conventions"
     ],
     "out": "docs",
     "exclude": [
@@ -124,16 +126,22 @@
       "path": "experimental/packages/otlp-grpc-exporter-base"
     },
     {
-      "path": "experimental/packages/otlp-proto-exporter-base"
+      "path": "experimental/packages/otlp-transformer"
     },
     {
-      "path": "experimental/packages/otlp-transformer"
+      "path": "experimental/packages/sampler-jaeger-remote"
+    },
+    {
+      "path": "experimental/packages/sdk-events"
     },
     {
       "path": "experimental/packages/sdk-logs"
     },
     {
       "path": "experimental/packages/shim-opencensus"
+    },
+    {
+      "path": "experimental/packages/web-common"
     },
     {
       "path": "packages/opentelemetry-context-async-hooks"
@@ -172,9 +180,6 @@
       "path": "packages/opentelemetry-sdk-trace-web"
     },
     {
-      "path": "packages/opentelemetry-semantic-conventions"
-    },
-    {
       "path": "packages/opentelemetry-shim-opentracing"
     },
     {
@@ -182,6 +187,9 @@
     },
     {
       "path": "packages/template"
+    },
+    {
+      "path": "semantic-conventions"
     }
   ]
 }

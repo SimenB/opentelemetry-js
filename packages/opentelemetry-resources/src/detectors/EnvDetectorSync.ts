@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-import { diag } from '@opentelemetry/api';
+import { Attributes, diag } from '@opentelemetry/api';
 import { getEnv } from '@opentelemetry/core';
-import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
+import { SEMRESATTRS_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
 import { Resource } from '../Resource';
-import { DetectorSync, ResourceAttributes } from '../types';
+import { DetectorSync } from '../types';
 import { ResourceDetectionConfig } from '../config';
 import { IResource } from '../IResource';
 
@@ -54,7 +54,7 @@ class EnvDetectorSync implements DetectorSync {
    * @param config The resource detection config
    */
   detect(_config?: ResourceDetectionConfig): IResource {
-    const attributes: ResourceAttributes = {};
+    const attributes: Attributes = {};
     const env = getEnv();
 
     const rawAttributes = env.OTEL_RESOURCE_ATTRIBUTES;
@@ -70,7 +70,7 @@ class EnvDetectorSync implements DetectorSync {
     }
 
     if (serviceName) {
-      attributes[SemanticResourceAttributes.SERVICE_NAME] = serviceName;
+      attributes[SEMRESATTRS_SERVICE_NAME] = serviceName;
     }
 
     return new Resource(attributes);
@@ -83,19 +83,17 @@ class EnvDetectorSync implements DetectorSync {
    * OTEL_RESOURCE_ATTRIBUTES: A comma-separated list of attributes describing
    * the source in more detail, e.g. “key1=val1,key2=val2”. Domain names and
    * paths are accepted as attribute keys. Values may be quoted or unquoted in
-   * general. If a value contains whitespaces, =, or " characters, it must
+   * general. If a value contains whitespace, =, or " characters, it must
    * always be quoted.
    *
-   * @param rawEnvAttributes The resource attributes as a comma-seperated list
+   * @param rawEnvAttributes The resource attributes as a comma-separated list
    * of key/value pairs.
    * @returns The sanitized resource attributes.
    */
-  private _parseResourceAttributes(
-    rawEnvAttributes?: string
-  ): ResourceAttributes {
+  private _parseResourceAttributes(rawEnvAttributes?: string): Attributes {
     if (!rawEnvAttributes) return {};
 
-    const attributes: ResourceAttributes = {};
+    const attributes: Attributes = {};
     const rawAttributes: string[] = rawEnvAttributes.split(
       this._COMMA_SEPARATOR,
       -1

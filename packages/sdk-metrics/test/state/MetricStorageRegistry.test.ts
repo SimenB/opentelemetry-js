@@ -19,7 +19,7 @@ import { diag, ValueType } from '@opentelemetry/api';
 import { MetricStorage } from '../../src/state/MetricStorage';
 import { HrTime } from '@opentelemetry/api';
 import { MetricCollectorHandle } from '../../src/state/MetricCollector';
-import { MetricData, InstrumentDescriptor, InstrumentType } from '../../src';
+import { MetricData, InstrumentType } from '../../src';
 import { Maybe } from '../../src/utils';
 import * as assert from 'assert';
 import * as sinon from 'sinon';
@@ -29,11 +29,11 @@ import {
   getUnitConflictResolutionRecipe,
   getValueTypeConflictResolutionRecipe,
 } from '../../src/view/RegistrationConflicts';
+import { InstrumentDescriptor } from '../../src/InstrumentDescriptor';
 
 class TestMetricStorage extends MetricStorage {
   collect(
     collector: MetricCollectorHandle,
-    collectors: MetricCollectorHandle[],
     collectionTime: HrTime
   ): Maybe<MetricData> {
     return undefined;
@@ -58,9 +58,15 @@ describe('MetricStorageRegistry', () => {
     selectAggregationTemporality: () => {
       throw new Error('should not be invoked');
     },
+    selectCardinalityLimit: () => {
+      throw new Error('should not be invoked');
+    },
   };
   const collectorHandle2: MetricCollectorHandle = {
     selectAggregationTemporality: () => {
+      throw new Error('should not be invoked');
+    },
+    selectCardinalityLimit: () => {
       throw new Error('should not be invoked');
     },
   };
@@ -74,6 +80,7 @@ describe('MetricStorageRegistry', () => {
         description: 'description',
         unit: '1',
         valueType: ValueType.DOUBLE,
+        advice: {},
       });
 
       registry.register(storage);
@@ -93,6 +100,7 @@ describe('MetricStorageRegistry', () => {
         description: 'description',
         unit: '1',
         valueType: ValueType.DOUBLE,
+        advice: {},
       });
       const storage2 = new TestMetricStorage({
         name: 'instrument2',
@@ -100,6 +108,7 @@ describe('MetricStorageRegistry', () => {
         description: 'description',
         unit: '1',
         valueType: ValueType.DOUBLE,
+        advice: {},
       });
 
       registry.registerForCollector(collectorHandle, storage);
@@ -153,6 +162,7 @@ describe('MetricStorageRegistry', () => {
         description: 'description',
         unit: '1',
         valueType: ValueType.DOUBLE,
+        advice: {},
       };
 
       const otherDescriptor = {
@@ -161,6 +171,7 @@ describe('MetricStorageRegistry', () => {
         description: 'description',
         unit: '1',
         valueType: ValueType.DOUBLE,
+        advice: {},
       };
 
       testConflictingRegistration(
@@ -177,6 +188,7 @@ describe('MetricStorageRegistry', () => {
         description: 'description',
         unit: '1',
         valueType: ValueType.DOUBLE,
+        advice: {},
       };
 
       const otherDescriptor = {
@@ -185,6 +197,7 @@ describe('MetricStorageRegistry', () => {
         description: 'description',
         unit: '1',
         valueType: ValueType.INT,
+        advice: {},
       };
 
       testConflictingRegistration(
@@ -204,6 +217,7 @@ describe('MetricStorageRegistry', () => {
         description: 'description',
         unit: '1',
         valueType: ValueType.DOUBLE,
+        advice: {},
       };
 
       const otherDescriptor = {
@@ -212,6 +226,7 @@ describe('MetricStorageRegistry', () => {
         description: 'description',
         unit: 'ms',
         valueType: ValueType.DOUBLE,
+        advice: {},
       };
 
       testConflictingRegistration(
@@ -228,6 +243,7 @@ describe('MetricStorageRegistry', () => {
         description: 'description',
         unit: '1',
         valueType: ValueType.DOUBLE,
+        advice: {},
       };
 
       const otherDescriptor = {
@@ -236,6 +252,7 @@ describe('MetricStorageRegistry', () => {
         description: 'longer description',
         unit: '1',
         valueType: ValueType.DOUBLE,
+        advice: {},
       };
 
       const registry = new MetricStorageRegistry();
@@ -276,6 +293,7 @@ describe('MetricStorageRegistry', () => {
         description: 'description',
         unit: '1',
         valueType: ValueType.DOUBLE,
+        advice: {},
       };
 
       const storage = new TestMetricStorage(descriptor);
@@ -295,6 +313,7 @@ describe('MetricStorageRegistry', () => {
         description: 'description',
         unit: '1',
         valueType: ValueType.DOUBLE,
+        advice: {},
       };
 
       const storage = new TestMetricStorage(descriptor);
@@ -330,6 +349,7 @@ describe('MetricStorageRegistry', () => {
         description: 'description',
         unit: '1',
         valueType: ValueType.DOUBLE,
+        advice: {},
       };
 
       const otherDescriptor = {
@@ -338,6 +358,7 @@ describe('MetricStorageRegistry', () => {
         description: 'description',
         unit: '1',
         valueType: ValueType.DOUBLE,
+        advice: {},
       };
 
       const registry = new MetricStorageRegistry();
@@ -376,6 +397,7 @@ describe('MetricStorageRegistry', () => {
         description: 'description',
         unit: '1',
         valueType: ValueType.DOUBLE,
+        advice: {},
       };
       const registry = new MetricStorageRegistry();
 

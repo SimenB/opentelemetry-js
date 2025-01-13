@@ -23,9 +23,9 @@ import {
 } from './types';
 import { HrTime } from '@opentelemetry/api';
 import { DataPointType, SumMetricData } from '../export/MetricData';
-import { InstrumentDescriptor } from '../InstrumentDescriptor';
 import { Maybe } from '../utils';
 import { AggregationTemporality } from '../export/AggregationTemporality';
+import { InstrumentDescriptor } from '../InstrumentDescriptor';
 
 export class SumAccumulation implements Accumulation {
   constructor(

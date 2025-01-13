@@ -15,10 +15,10 @@
  */
 
 import { trace, metrics } from '@opentelemetry/api';
+import { logs } from '@opentelemetry/api-logs';
 import {
   disableInstrumentations,
   enableInstrumentations,
-  parseInstrumentationOptions,
 } from './autoLoaderUtils';
 import { AutoLoaderOptions } from './types_internal';
 
@@ -31,13 +31,17 @@ import { AutoLoaderOptions } from './types_internal';
 export function registerInstrumentations(
   options: AutoLoaderOptions
 ): () => void {
-  const { instrumentations } = parseInstrumentationOptions(
-    options.instrumentations
-  );
   const tracerProvider = options.tracerProvider || trace.getTracerProvider();
   const meterProvider = options.meterProvider || metrics.getMeterProvider();
+  const loggerProvider = options.loggerProvider || logs.getLoggerProvider();
+  const instrumentations = options.instrumentations?.flat() ?? [];
 
-  enableInstrumentations(instrumentations, tracerProvider, meterProvider);
+  enableInstrumentations(
+    instrumentations,
+    tracerProvider,
+    meterProvider,
+    loggerProvider
+  );
 
   return () => {
     disableInstrumentations(instrumentations);

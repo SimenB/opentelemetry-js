@@ -19,7 +19,23 @@ import { Context } from '../context/types';
 import { BatchObservableResult, ObservableResult } from './ObservableResult';
 
 /**
+ * Advisory options influencing aggregation configuration parameters.
+ *
+ * @since 1.7.0
+ * @experimental
+ */
+export interface MetricAdvice {
+  /**
+   * Hint the explicit bucket boundaries for SDK if the metric is been
+   * aggregated with a HistogramAggregator.
+   */
+  explicitBucketBoundaries?: number[];
+}
+
+/**
  * Options needed for metric creation
+ *
+ * @since 1.3.0
  */
 export interface MetricOptions {
   /**
@@ -39,9 +55,20 @@ export interface MetricOptions {
    * @default {@link ValueType.DOUBLE}
    */
   valueType?: ValueType;
+
+  /**
+   * The advice influencing aggregation configuration parameters.
+   * @experimental
+   * @since 1.7.0
+   */
+  advice?: MetricAdvice;
 }
 
-/** The Type of value. It describes how the data is reported. */
+/**
+ * The Type of value. It describes how the data is reported.
+ *
+ * @since 1.3.0
+ */
 export enum ValueType {
   INT,
   DOUBLE,
@@ -61,9 +88,11 @@ export enum ValueType {
  *   <li> count the number of checkpoints run. </li>
  *   <li> count the number of 5xx errors. </li>
  * <ol>
+ *
+ * @since 1.3.0
  */
 export interface Counter<
-  AttributesTypes extends MetricAttributes = MetricAttributes
+  AttributesTypes extends MetricAttributes = MetricAttributes,
 > {
   /**
    * Increment value of counter by the input. Inputs must not be negative.
@@ -71,8 +100,11 @@ export interface Counter<
   add(value: number, attributes?: AttributesTypes, context?: Context): void;
 }
 
+/**
+ * @since 1.3.0
+ */
 export interface UpDownCounter<
-  AttributesTypes extends MetricAttributes = MetricAttributes
+  AttributesTypes extends MetricAttributes = MetricAttributes,
 > {
   /**
    * Increment value of counter by the input. Inputs may be negative.
@@ -80,8 +112,23 @@ export interface UpDownCounter<
   add(value: number, attributes?: AttributesTypes, context?: Context): void;
 }
 
+/**
+ * @since 1.9.0
+ */
+export interface Gauge<
+  AttributesTypes extends MetricAttributes = MetricAttributes,
+> {
+  /**
+   * Records a measurement.
+   */
+  record(value: number, attributes?: AttributesTypes, context?: Context): void;
+}
+
+/**
+ * @since 1.3.0
+ */
 export interface Histogram<
-  AttributesTypes extends MetricAttributes = MetricAttributes
+  AttributesTypes extends MetricAttributes = MetricAttributes,
 > {
   /**
    * Records a measurement. Value of the measurement must not be negative.
@@ -91,34 +138,43 @@ export interface Histogram<
 
 /**
  * @deprecated please use {@link Attributes}
+ * @since 1.3.0
  */
 export type MetricAttributes = Attributes;
 
 /**
  * @deprecated please use {@link AttributeValue}
+ * @since 1.3.0
  */
 export type MetricAttributeValue = AttributeValue;
 
 /**
  * The observable callback for Observable instruments.
+ *
+ * @since 1.3.0
  */
 export type ObservableCallback<
-  AttributesTypes extends MetricAttributes = MetricAttributes
+  AttributesTypes extends MetricAttributes = MetricAttributes,
 > = (
   observableResult: ObservableResult<AttributesTypes>
 ) => void | Promise<void>;
 
 /**
  * The observable callback for a batch of Observable instruments.
+ *
+ * @since 1.3.0
  */
 export type BatchObservableCallback<
-  AttributesTypes extends MetricAttributes = MetricAttributes
+  AttributesTypes extends MetricAttributes = MetricAttributes,
 > = (
   observableResult: BatchObservableResult<AttributesTypes>
 ) => void | Promise<void>;
 
+/**
+ * @since 1.3.0
+ */
 export interface Observable<
-  AttributesTypes extends MetricAttributes = MetricAttributes
+  AttributesTypes extends MetricAttributes = MetricAttributes,
 > {
   /**
    * Sets up a function that will be called whenever a metric collection is initiated.
@@ -133,12 +189,21 @@ export interface Observable<
   removeCallback(callback: ObservableCallback<AttributesTypes>): void;
 }
 
+/**
+ * @since 1.3.0
+ */
 export type ObservableCounter<
-  AttributesTypes extends MetricAttributes = MetricAttributes
+  AttributesTypes extends MetricAttributes = MetricAttributes,
 > = Observable<AttributesTypes>;
+/**
+ * @since 1.3.0
+ */
 export type ObservableUpDownCounter<
-  AttributesTypes extends MetricAttributes = MetricAttributes
+  AttributesTypes extends MetricAttributes = MetricAttributes,
 > = Observable<AttributesTypes>;
+/**
+ * @since 1.3.0
+ */
 export type ObservableGauge<
-  AttributesTypes extends MetricAttributes = MetricAttributes
+  AttributesTypes extends MetricAttributes = MetricAttributes,
 > = Observable<AttributesTypes>;

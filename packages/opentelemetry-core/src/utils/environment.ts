@@ -16,7 +16,6 @@
 
 import { DiagLogLevel } from '@opentelemetry/api';
 import { TracesSamplerValues } from './sampling';
-import { _globalThis } from '../platform/browser/globalThis';
 
 const DEFAULT_LIST_SEPARATOR = ',';
 
@@ -75,6 +74,7 @@ function isEnvVarANumber(key: unknown): key is keyof ENVIRONMENT_NUMBERS {
 const ENVIRONMENT_LISTS_KEYS = [
   'OTEL_NO_PATCH_MODULES',
   'OTEL_PROPAGATORS',
+  'OTEL_SEMCONV_STABILITY_OPT_IN',
 ] as const;
 
 type ENVIRONMENT_LISTS = {
@@ -236,6 +236,7 @@ export const DEFAULT_ENVIRONMENT: Required<ENVIRONMENT> = {
   OTEL_EXPORTER_OTLP_METRICS_PROTOCOL: 'http/protobuf',
   OTEL_EXPORTER_OTLP_LOGS_PROTOCOL: 'http/protobuf',
   OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE: 'cumulative',
+  OTEL_SEMCONV_STABILITY_OPT_IN: [],
 };
 
 /**
@@ -368,14 +369,4 @@ export function parseEnvironment(values: RAW_ENVIRONMENT): ENVIRONMENT {
   }
 
   return environment;
-}
-
-/**
- * Get environment in node or browser without
- * populating default values.
- */
-export function getEnvWithoutDefaults(): ENVIRONMENT {
-  return typeof process !== 'undefined' && process && process.env
-    ? parseEnvironment(process.env as RAW_ENVIRONMENT)
-    : parseEnvironment(_globalThis as typeof globalThis & RAW_ENVIRONMENT);
 }

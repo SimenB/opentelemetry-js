@@ -39,8 +39,8 @@ describe('RequireInTheMiddleSingleton', () => {
     const onRequireFsPromisesStub = makeOnRequiresStub('fs-promises');
     const onRequireCodecovStub = makeOnRequiresStub('codecov');
     const onRequireCodecovLibStub = makeOnRequiresStub('codecov-lib');
-    const onRequireCpxStub = makeOnRequiresStub('cpx');
-    const onRequireCpxLibStub = makeOnRequiresStub('cpx-lib');
+    const onRequireCpxStub = makeOnRequiresStub('test-non-core-module');
+    const onRequireCpxLibStub = makeOnRequiresStub('test-non-core-module-lib');
 
     before(() => {
       requireInTheMiddleSingleton.register('fs', onRequireFsStub);
@@ -53,9 +53,12 @@ describe('RequireInTheMiddleSingleton', () => {
         'codecov/lib/codecov.js',
         onRequireCodecovLibStub
       );
-      requireInTheMiddleSingleton.register('cpx', onRequireCpxStub);
       requireInTheMiddleSingleton.register(
-        'cpx/lib/copy-sync.js',
+        'test-non-core-module',
+        onRequireCpxStub
+      );
+      requireInTheMiddleSingleton.register(
+        'test-non-core-module/lib/copy-sync.js',
         onRequireCpxLibStub
       );
     });
@@ -120,8 +123,12 @@ describe('RequireInTheMiddleSingleton', () => {
 
     describe('non-core module', () => {
       describe('AND module name matches', () => {
-        const baseDir = path.dirname(require.resolve('codecov'));
-        const modulePath = path.join('codecov', 'lib', 'codecov.js');
+        const baseDir = path.normalize(
+          path.dirname(require.resolve('codecov'))
+        );
+        const modulePath = path.normalize(
+          path.join('codecov', 'lib', 'codecov.js')
+        );
         it('should call `onRequire`', () => {
           const exports = require('codecov');
           assert.deepStrictEqual(exports.__ritmOnRequires, ['codecov']);
@@ -149,17 +156,29 @@ describe('RequireInTheMiddleSingleton', () => {
 
     describe('non-core module with sub-path', () => {
       describe('AND module name matches', () => {
-        const baseDir = path.resolve(
-          path.dirname(require.resolve('cpx')),
-          '..'
+        const baseDir = path.normalize(
+          path.resolve(
+            path.dirname(require.resolve('test-non-core-module')),
+            '..'
+          )
         );
-        const modulePath = path.join('cpx', 'lib', 'copy-sync.js');
+        const modulePath = path.normalize(
+          path.join('test-non-core-module', 'lib', 'copy-sync.js')
+        );
         it('should call `onRequire`', () => {
-          const exports = require('cpx/lib/copy-sync');
-          assert.deepStrictEqual(exports.__ritmOnRequires, ['cpx', 'cpx-lib']);
+          const exports = require('test-non-core-module/lib/copy-sync');
+          assert.deepStrictEqual(exports.__ritmOnRequires, [
+            'test-non-core-module',
+            'test-non-core-module-lib',
+          ]);
           sinon.assert.calledWithMatch(
             onRequireCpxStub,
-            { __ritmOnRequires: ['cpx', 'cpx-lib'] },
+            {
+              __ritmOnRequires: [
+                'test-non-core-module',
+                'test-non-core-module-lib',
+              ],
+            },
             modulePath,
             baseDir
           );
@@ -175,7 +194,7 @@ describe('RequireInTheMiddleSingleton', () => {
             modulePath,
             baseDir
           );
-        });
+        }).timeout(30000);
       });
     });
   });

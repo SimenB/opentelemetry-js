@@ -20,11 +20,15 @@ import {
   Aggregator,
   AggregatorKind,
 } from './types';
-import { DataPointType, HistogramMetricData } from '../export/MetricData';
+import {
+  DataPointType,
+  HistogramMetricData,
+  InstrumentType,
+} from '../export/MetricData';
 import { HrTime } from '@opentelemetry/api';
-import { InstrumentDescriptor, InstrumentType } from '../InstrumentDescriptor';
-import { binarySearchLB, Maybe } from '../utils';
+import { binarySearchUB, Maybe } from '../utils';
 import { AggregationTemporality } from '../export/AggregationTemporality';
+import { InstrumentDescriptor } from '../InstrumentDescriptor';
 
 /**
  * Internal value type for HistogramAggregation.
@@ -68,6 +72,12 @@ export class HistogramAccumulation implements Accumulation {
   ) {}
 
   record(value: number): void {
+    // NaN does not fall into any bucket, is not zero and should not be counted,
+    // NaN is never greater than max nor less than min, therefore return as there's nothing for us to do.
+    if (Number.isNaN(value)) {
+      return;
+    }
+
     this._current.count += 1;
     this._current.sum += value;
 
@@ -77,8 +87,8 @@ export class HistogramAccumulation implements Accumulation {
       this._current.hasMinMax = true;
     }
 
-    const idx = binarySearchLB(this._boundaries, value);
-    this._current.buckets.counts[idx + 1] += 1;
+    const idx = binarySearchUB(this._boundaries, value);
+    this._current.buckets.counts[idx] += 1;
   }
 
   setStartTime(startTime: HrTime): void {
@@ -221,6 +231,7 @@ export class HistogramAggregator implements Aggregator<HistogramAccumulation> {
 
         // determine if instrument allows negative values.
         const allowsNegativeValues =
+          descriptor.type === InstrumentType.GAUGE ||
           descriptor.type === InstrumentType.UP_DOWN_COUNTER ||
           descriptor.type === InstrumentType.OBSERVABLE_GAUGE ||
           descriptor.type === InstrumentType.OBSERVABLE_UP_DOWN_COUNTER;

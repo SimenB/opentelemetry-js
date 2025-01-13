@@ -15,21 +15,16 @@
  */
 
 import { TracerProvider, MeterProvider } from '@opentelemetry/api';
-import { InstrumentationBase } from './platform';
 import { Instrumentation } from './types';
-
-export type InstrumentationOption =
-  | typeof InstrumentationBase
-  | (typeof InstrumentationBase)[]
-  | Instrumentation
-  | Instrumentation[];
+import { LoggerProvider } from '@opentelemetry/api-logs';
 
 export interface AutoLoaderResult {
   instrumentations: Instrumentation[];
 }
 
 export interface AutoLoaderOptions {
-  instrumentations?: InstrumentationOption[];
+  instrumentations?: (Instrumentation | Instrumentation[])[];
   tracerProvider?: TracerProvider;
   meterProvider?: MeterProvider;
+  loggerProvider?: LoggerProvider;
 }

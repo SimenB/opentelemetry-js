@@ -41,7 +41,11 @@ const exporter = new ZipkinExporter(options);
 Now, register the exporter and start tracing.
 
 ```js
-tracer.addSpanProcessor(new BatchSpanProcessor(exporter));
+const tracerProvider = new NodeTracerProvider({
+  spanProcessors: [new BatchSpanProcessor(exporter)]
+})
+
+const tracer = traceProvider.getTracer('my-tracer')
 ```
 
 You can use built-in `SimpleSpanProcessor` or `BatchSpanProcessor` or write your own.
@@ -51,7 +55,7 @@ You can use built-in `SimpleSpanProcessor` or `BatchSpanProcessor` or write your
 
 ### Options
 
-- **getExportRequestHeaders** - optional interceptor that allows adding new headers everytime time the exporter is going to send spans.
+- **getExportRequestHeaders** - optional interceptor that allows adding new headers every time time the exporter is going to send spans.
 This is optional and can be used if headers are changing over time. This is a sync callback.
 
 ## Viewing your traces

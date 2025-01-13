@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-import { Context, HrTime, MetricAttributes } from '@opentelemetry/api';
+import { Context, HrTime, Attributes } from '@opentelemetry/api';
 import { WritableMetricStorage } from './WritableMetricStorage';
 import { Accumulation, Aggregator } from '../aggregator/types';
 import { InstrumentDescriptor } from '../InstrumentDescriptor';
-import { AttributesProcessor } from '../view/AttributesProcessor';
+import { IAttributesProcessor } from '../view/AttributesProcessor';
 import { MetricStorage } from './MetricStorage';
 import { MetricData } from '../export/MetricData';
 import { DeltaMetricProcessor } from './DeltaMetricProcessor';
@@ -41,16 +41,24 @@ export class SyncMetricStorage<T extends Maybe<Accumulation>>
   constructor(
     instrumentDescriptor: InstrumentDescriptor,
     aggregator: Aggregator<T>,
-    private _attributesProcessor: AttributesProcessor
+    private _attributesProcessor: IAttributesProcessor,
+    collectorHandles: MetricCollectorHandle[],
+    private _aggregationCardinalityLimit?: number
   ) {
     super(instrumentDescriptor);
-    this._deltaMetricStorage = new DeltaMetricProcessor(aggregator);
-    this._temporalMetricStorage = new TemporalMetricProcessor(aggregator);
+    this._deltaMetricStorage = new DeltaMetricProcessor(
+      aggregator,
+      this._aggregationCardinalityLimit
+    );
+    this._temporalMetricStorage = new TemporalMetricProcessor(
+      aggregator,
+      collectorHandles
+    );
   }
 
   record(
     value: number,
-    attributes: MetricAttributes,
+    attributes: Attributes,
     context: Context,
     recordTime: HrTime
   ) {
@@ -66,14 +74,12 @@ export class SyncMetricStorage<T extends Maybe<Accumulation>>
    */
   collect(
     collector: MetricCollectorHandle,
-    collectors: MetricCollectorHandle[],
     collectionTime: HrTime
   ): Maybe<MetricData> {
     const accumulations = this._deltaMetricStorage.collect();
 
     return this._temporalMetricStorage.buildMetrics(
       collector,
-      collectors,
       this._instrumentDescriptor,
       accumulations,
       collectionTime

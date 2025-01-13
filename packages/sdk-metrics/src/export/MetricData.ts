@@ -14,18 +14,37 @@
  * limitations under the License.
  */
 
-import { HrTime, MetricAttributes } from '@opentelemetry/api';
+import { HrTime, Attributes, ValueType } from '@opentelemetry/api';
 import { InstrumentationScope } from '@opentelemetry/core';
 import { IResource } from '@opentelemetry/resources';
-import { InstrumentDescriptor } from '../InstrumentDescriptor';
 import { AggregationTemporality } from './AggregationTemporality';
 import { Histogram, ExponentialHistogram } from '../aggregator/types';
+
+/**
+ * Supported types of metric instruments.
+ */
+export enum InstrumentType {
+  COUNTER = 'COUNTER',
+  GAUGE = 'GAUGE',
+  HISTOGRAM = 'HISTOGRAM',
+  UP_DOWN_COUNTER = 'UP_DOWN_COUNTER',
+  OBSERVABLE_COUNTER = 'OBSERVABLE_COUNTER',
+  OBSERVABLE_GAUGE = 'OBSERVABLE_GAUGE',
+  OBSERVABLE_UP_DOWN_COUNTER = 'OBSERVABLE_UP_DOWN_COUNTER',
+}
+
+export interface MetricDescriptor {
+  readonly name: string;
+  readonly description: string;
+  readonly unit: string;
+  readonly valueType: ValueType;
+}
 
 /**
  * Basic metric data fields.
  */
 interface BaseMetricData {
-  readonly descriptor: InstrumentDescriptor;
+  readonly descriptor: MetricDescriptor;
   readonly aggregationTemporality: AggregationTemporality;
   /**
    * DataPointType of the metric instrument.
@@ -147,7 +166,7 @@ export interface DataPoint<T> {
   /**
    * The attributes associated with this DataPoint.
    */
-  readonly attributes: MetricAttributes;
+  readonly attributes: Attributes;
   /**
    * The value for this DataPoint. The type of the value is indicated by the
    * {@link DataPointType}.

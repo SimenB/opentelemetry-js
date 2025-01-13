@@ -13,14 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import type { ResourceMetrics } from '@opentelemetry/sdk-metrics';
-import type { IExportMetricsServiceRequest } from './types';
-import { toResourceMetrics } from './internal';
 
-export function createExportMetricsServiceRequest(
-  resourceMetrics: ResourceMetrics[]
-): IExportMetricsServiceRequest {
-  return {
-    resourceMetrics: resourceMetrics.map(metrics => toResourceMetrics(metrics)),
-  };
-}
+// IMPORTANT: exports added here are public
+export {
+  IExportMetricsPartialSuccess,
+  IExportMetricsServiceResponse,
+} from './export-response';

@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-import { HrTime, MetricAttributes } from '@opentelemetry/api';
+import { HrTime, Attributes } from '@opentelemetry/api';
 import { AggregationTemporality } from '../export/AggregationTemporality';
 import { MetricData } from '../export/MetricData';
-import { InstrumentDescriptor } from '../InstrumentDescriptor';
 import { Maybe } from '../utils';
+import { InstrumentDescriptor } from '../InstrumentDescriptor';
 
 /** The kind of aggregator. */
 export enum AggregatorKind {
@@ -39,18 +39,18 @@ export type LastValue = number;
 export interface Histogram {
   /**
    * Buckets are implemented using two different arrays:
-   *  - boundaries: contains every finite bucket boundary, which are inclusive lower bounds
+   *  - boundaries: contains every finite bucket boundary, which are inclusive upper bounds
    *  - counts: contains event counts for each bucket
    *
    * Note that we'll always have n+1 buckets, where n is the number of boundaries.
-   * This is because we need to count events that are below the lowest boundary.
+   * This is because we need to count events that are higher than the upper boundary.
    *
    * Example: if we measure the values: [5, 30, 5, 40, 5, 15, 15, 15, 25]
    *  with the boundaries [ 10, 20, 30 ], we will have the following state:
    *
    * buckets: {
    *	boundaries: [10, 20, 30],
-   *	counts: [3, 3, 1, 2],
+   *	counts: [3, 3, 2, 1],
    * }
    */
   buckets: {
@@ -89,7 +89,7 @@ export interface Accumulation {
   record(value: number): void;
 }
 
-export type AccumulationRecord<T> = [MetricAttributes, T];
+export type AccumulationRecord<T> = [Attributes, T];
 
 /**
  * Base interface for aggregators. Aggregators are responsible for holding
@@ -128,7 +128,7 @@ export interface Aggregator<T> {
   /**
    * Returns the {@link MetricData} that this {@link Aggregator} will produce.
    *
-   * @param descriptor the metric instrument descriptor.
+   * @param descriptor the metric descriptor.
    * @param aggregationTemporality the temporality of the resulting {@link MetricData}
    * @param accumulationByAttributes the array of attributes and accumulation pairs.
    * @param endTime the end time of the metric data.

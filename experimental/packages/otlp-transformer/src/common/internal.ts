@@ -13,8 +13,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import type { IAnyValue, IKeyValue } from './types';
+import type {
+  IAnyValue,
+  IInstrumentationScope,
+  IKeyValue,
+  IResource,
+} from './internal-types';
 import { Attributes } from '@opentelemetry/api';
+import { InstrumentationScope } from '@opentelemetry/core';
+import { IResource as ISdkResource } from '@opentelemetry/resources';
+
+export function createResource(resource: ISdkResource): IResource {
+  return {
+    attributes: toAttributes(resource.attributes),
+    droppedAttributesCount: 0,
+  };
+}
+
+export function createInstrumentationScope(
+  scope: InstrumentationScope
+): IInstrumentationScope {
+  return {
+    name: scope.name,
+    version: scope.version,
+  };
+}
 
 export function toAttributes(attributes: Attributes): IKeyValue[] {
   return Object.keys(attributes).map(key => toKeyValue(key, attributes[key]));

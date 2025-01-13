@@ -30,6 +30,9 @@
       "path": "experimental/packages/opentelemetry-exporter-metrics-otlp-http/tsconfig.esnext.json"
     },
     {
+      "path": "experimental/packages/opentelemetry-exporter-metrics-otlp-proto/tsconfig.esnext.json"
+    },
+    {
       "path": "experimental/packages/opentelemetry-instrumentation/tsconfig.esnext.json"
     },
     {
@@ -42,13 +45,16 @@
       "path": "experimental/packages/otlp-exporter-base/tsconfig.esnext.json"
     },
     {
-      "path": "experimental/packages/otlp-proto-exporter-base/tsconfig.esnext.json"
-    },
-    {
       "path": "experimental/packages/otlp-transformer/tsconfig.esnext.json"
     },
     {
+      "path": "experimental/packages/sdk-events/tsconfig.esnext.json"
+    },
+    {
       "path": "experimental/packages/sdk-logs/tsconfig.esnext.json"
+    },
+    {
+      "path": "experimental/packages/web-common/tsconfig.esnext.json"
     },
     {
       "path": "packages/opentelemetry-context-zone/tsconfig.esnext.json"
@@ -78,10 +84,10 @@
       "path": "packages/opentelemetry-sdk-trace-web/tsconfig.esnext.json"
     },
     {
-      "path": "packages/opentelemetry-semantic-conventions/tsconfig.esnext.json"
+      "path": "packages/sdk-metrics/tsconfig.esnext.json"
     },
     {
-      "path": "packages/sdk-metrics/tsconfig.esnext.json"
+      "path": "semantic-conventions/tsconfig.esnext.json"
     }
   ]
 }

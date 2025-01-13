@@ -43,6 +43,7 @@ export { MeterProvider } from './metrics/MeterProvider';
 export {
   ValueType,
   Counter,
+  Gauge,
   Histogram,
   MetricOptions,
   Observable,
@@ -51,6 +52,7 @@ export {
   ObservableUpDownCounter,
   UpDownCounter,
   BatchObservableCallback,
+  MetricAdvice,
   MetricAttributes,
   MetricAttributeValue,
   ObservableCallback,

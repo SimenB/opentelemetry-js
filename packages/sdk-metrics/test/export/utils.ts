@@ -29,6 +29,7 @@ const instrumentTypes = [
   InstrumentType.UP_DOWN_COUNTER,
   InstrumentType.OBSERVABLE_UP_DOWN_COUNTER,
   InstrumentType.HISTOGRAM,
+  InstrumentType.GAUGE,
   InstrumentType.OBSERVABLE_GAUGE,
 ];
 
@@ -42,7 +43,7 @@ export function assertAggregationSelector(
   expectedSelector: AggregationSelector
 ) {
   for (const instrumentType of instrumentTypes) {
-    assert.strictEqual(
+    assert.deepStrictEqual(
       reader.selectAggregation?.(instrumentType),
       expectedSelector(instrumentType),
       `incorrect aggregation selection for ${InstrumentType[instrumentType]}`

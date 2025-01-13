@@ -24,48 +24,25 @@ import {
   ExponentialHistogramAggregator,
 } from '../aggregator';
 import { Accumulation } from '../aggregator/types';
-import { InstrumentDescriptor, InstrumentType } from '../InstrumentDescriptor';
+import { InstrumentDescriptor } from '../InstrumentDescriptor';
 import { Maybe } from '../utils';
+import { InstrumentType } from '../export/MetricData';
 
 /**
  * Configures how measurements are combined into metrics for views.
  *
  * Aggregation provides a set of built-in aggregations via static methods.
  */
-export abstract class Aggregation {
-  abstract createAggregator(
+export interface Aggregation {
+  createAggregator(
     instrument: InstrumentDescriptor
   ): Aggregator<Maybe<Accumulation>>;
-
-  static Drop(): Aggregation {
-    return DROP_AGGREGATION;
-  }
-
-  static Sum(): Aggregation {
-    return SUM_AGGREGATION;
-  }
-
-  static LastValue(): Aggregation {
-    return LAST_VALUE_AGGREGATION;
-  }
-
-  static Histogram(): Aggregation {
-    return HISTOGRAM_AGGREGATION;
-  }
-
-  static ExponentialHistogram(): Aggregation {
-    return EXPONENTIAL_HISTOGRAM_AGGREGATION;
-  }
-
-  static Default(): Aggregation {
-    return DEFAULT_AGGREGATION;
-  }
 }
 
 /**
  * The default drop aggregation.
  */
-export class DropAggregation extends Aggregation {
+export class DropAggregation implements Aggregation {
   private static DEFAULT_INSTANCE = new DropAggregator();
   createAggregator(_instrument: InstrumentDescriptor) {
     return DropAggregation.DEFAULT_INSTANCE;
@@ -75,7 +52,7 @@ export class DropAggregation extends Aggregation {
 /**
  * The default sum aggregation.
  */
-export class SumAggregation extends Aggregation {
+export class SumAggregation implements Aggregation {
   private static MONOTONIC_INSTANCE = new SumAggregator(true);
   private static NON_MONOTONIC_INSTANCE = new SumAggregator(false);
   createAggregator(instrument: InstrumentDescriptor) {
@@ -95,7 +72,7 @@ export class SumAggregation extends Aggregation {
 /**
  * The default last value aggregation.
  */
-export class LastValueAggregation extends Aggregation {
+export class LastValueAggregation implements Aggregation {
   private static DEFAULT_INSTANCE = new LastValueAggregator();
   createAggregator(_instrument: InstrumentDescriptor) {
     return LastValueAggregation.DEFAULT_INSTANCE;
@@ -104,8 +81,9 @@ export class LastValueAggregation extends Aggregation {
 
 /**
  * The default histogram aggregation.
+
  */
-export class HistogramAggregation extends Aggregation {
+export class HistogramAggregation implements Aggregation {
   private static DEFAULT_INSTANCE = new HistogramAggregator(
     [0, 5, 10, 25, 50, 75, 100, 250, 500, 750, 1000, 2500, 5000, 7500, 10000],
     true
@@ -118,17 +96,21 @@ export class HistogramAggregation extends Aggregation {
 /**
  * The explicit bucket histogram aggregation.
  */
-export class ExplicitBucketHistogramAggregation extends Aggregation {
+export class ExplicitBucketHistogramAggregation implements Aggregation {
   private _boundaries: number[];
 
   /**
    * @param boundaries the bucket boundaries of the histogram aggregation
    * @param _recordMinMax If set to true, min and max will be recorded. Otherwise, min and max will not be recorded.
    */
-  constructor(boundaries: number[], private readonly _recordMinMax = true) {
-    super();
-    if (boundaries === undefined || boundaries.length === 0) {
-      throw new Error('HistogramAggregator should be created with boundaries.');
+  constructor(
+    boundaries: number[],
+    private readonly _recordMinMax = true
+  ) {
+    if (boundaries == null) {
+      throw new Error(
+        'ExplicitBucketHistogramAggregation should be created with explicit boundaries, if a single bucket histogram is required, please pass an empty array'
+      );
     }
     // Copy the boundaries array for modification.
     boundaries = boundaries.concat();
@@ -149,13 +131,11 @@ export class ExplicitBucketHistogramAggregation extends Aggregation {
   }
 }
 
-export class ExponentialHistogramAggregation extends Aggregation {
+export class ExponentialHistogramAggregation implements Aggregation {
   constructor(
     private readonly _maxSize: number = 160,
     private readonly _recordMinMax = true
-  ) {
-    super();
-  }
+  ) {}
   createAggregator(_instrument: InstrumentDescriptor) {
     return new ExponentialHistogramAggregator(
       this._maxSize,
@@ -167,7 +147,7 @@ export class ExponentialHistogramAggregation extends Aggregation {
 /**
  * The default aggregation.
  */
-export class DefaultAggregation extends Aggregation {
+export class DefaultAggregation implements Aggregation {
   private _resolve(instrument: InstrumentDescriptor): Aggregation {
     // cast to unknown to disable complaints on the (unreachable) fallback.
     switch (instrument.type as unknown) {
@@ -177,10 +157,16 @@ export class DefaultAggregation extends Aggregation {
       case InstrumentType.OBSERVABLE_UP_DOWN_COUNTER: {
         return SUM_AGGREGATION;
       }
+      case InstrumentType.GAUGE:
       case InstrumentType.OBSERVABLE_GAUGE: {
         return LAST_VALUE_AGGREGATION;
       }
       case InstrumentType.HISTOGRAM: {
+        if (instrument.advice.explicitBucketBoundaries) {
+          return new ExplicitBucketHistogramAggregation(
+            instrument.advice.explicitBucketBoundaries
+          );
+        }
         return HISTOGRAM_AGGREGATION;
       }
     }
@@ -195,9 +181,10 @@ export class DefaultAggregation extends Aggregation {
   }
 }
 
-const DROP_AGGREGATION = new DropAggregation();
-const SUM_AGGREGATION = new SumAggregation();
-const LAST_VALUE_AGGREGATION = new LastValueAggregation();
-const HISTOGRAM_AGGREGATION = new HistogramAggregation();
-const EXPONENTIAL_HISTOGRAM_AGGREGATION = new ExponentialHistogramAggregation();
-const DEFAULT_AGGREGATION = new DefaultAggregation();
+export const DROP_AGGREGATION = new DropAggregation();
+export const SUM_AGGREGATION = new SumAggregation();
+export const LAST_VALUE_AGGREGATION = new LastValueAggregation();
+export const HISTOGRAM_AGGREGATION = new HistogramAggregation();
+export const EXPONENTIAL_HISTOGRAM_AGGREGATION =
+  new ExponentialHistogramAggregation();
+export const DEFAULT_AGGREGATION = new DefaultAggregation();
